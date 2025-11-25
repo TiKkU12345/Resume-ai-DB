@@ -5,7 +5,7 @@ numpy==1.26.2
 plotly==5.17.0
 
 # ===== DATABASE =====
-supabase==2.3.4
+supabase==1.0.3
 python-dotenv==1.0.0
 
 # ===== NLP + RESUME PARSING =====
@@ -28,5 +28,6 @@ sentence-transformers==2.2.2
 huggingface-hub==0.20.3
 tqdm==4.66.1
 requests==2.31.0
+
 
 
