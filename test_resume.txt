@@ -1,0 +1,22 @@
+John Doe
+john.doe@email.com | +1-234-567-8900 | linkedin.com/in/johndoe
+
+PROFESSIONAL SUMMARY
+Experienced Software Engineer with 5 years in Python and Machine Learning.
+
+EXPERIENCE
+Senior Software Engineer | Tech Corp | Jan 2020 - Present
+- Developed ML models using Python and TensorFlow
+- Led team of 5 engineers
+- Improved system performance by 40%
+
+Software Engineer | StartUp Inc | Jun 2018 - Dec 2019
+- Built web applications using React and Node.js
+- Implemented CI/CD pipelines
+
+EDUCATION
+Bachelor of Technology in Computer Science | MIT | 2014 - 2018
+GPA: 3.8/4.0
+
+SKILLS
+Python, JavaScript, Machine Learning, TensorFlow, React, AWS, Docker, SQL

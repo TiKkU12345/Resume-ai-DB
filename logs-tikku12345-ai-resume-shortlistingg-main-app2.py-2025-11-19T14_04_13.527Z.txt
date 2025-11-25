@@ -1,0 +1,598 @@
+
+[     UTC     ] Logs for ai-resume-shortlistingg-kpqbf3kqsvjkquzwkkwwti.streamlit.app/
+────────────────────────────────────────────────────────────────────────────────────────
+[11:39:01] 🚀 Starting up repository: 'ai-resume-shortlistingg', branch: 'main', main module: 'app2.py'
+[11:39:01] 🐙 Cloning repository...
+[11:39:02] 🐙 Cloning into '/mount/src/ai-resume-shortlistingg'...
+
+[11:39:02] 🐙 Cloned repository!
+[11:39:02] 🐙 Pulling code changes from Github...
+[11:39:03] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+error: Couldn't parse requirement in `requirements.txt` at position 0
+  Caused by: expected version to start with a number, but no leading ASCII digits were found
+python_version == "3.11"
+               ^^^^^^^^^
+Checking if Streamlit is installed
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Resolved 4 packages in 122ms
+Prepared 4 packages in 117ms
+Installed 4 packages in 14ms
+ + markdown-it-py==4.0.0
+ + mdurl==0.1.2
+ + pygments==2.19.2[2025-11-19 11:39:03.721018] 
+ + rich==14.2.0
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+
+──────────────────────────────────────── pip ───────────────────────────────────────────
+
+Using standard pip install.
+Collecting en-core-web-sm==3.7.1 (from -r /mount/src/ai-resume-shortlistingg/requirements.txt (line 14))
+  Downloading https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl (12.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 129.5 MB/s eta 0:00:00[2025-11-19 11:39:05.377219] 
+ERROR: Could not find a version that satisfies the requirement python_version=="3.11" (from versions: 0.0.2)
+ERROR: No matching distribution found for python_version=="3.11"
+
+[notice] A new release of pip is available: 24.0 -> 25.3
+[notice] To update, run: pip install --upgrade pip
+Checking if Streamlit is installed
+Installing rich for an improved exception logging
+Using standard pip install.
+Collecting rich>=10.14.0
+  Downloading rich-14.2.0-py3-none-any.whl.metadata (18 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=10.14.0)
+  Downloading markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich>=10.14.0)
+  Downloading pygments-2.19.2-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=10.14.0)
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Downloading rich-14.2.0-py3-none-any.whl (243 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.4/243.4 kB 15.0 MB/s eta 0:00:00[2025-11-19 11:39:06.708377] 
+Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 159.5 MB/s eta 0:00:00[2025-11-19 11:39:06.719327] 
+Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 86.4 MB/s eta 0:00:00[2025-11-19 11:39:06.744178] 
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Installing collected packages: pygments, mdurl, markdown-it-py, rich
+  Attempting uninstall: pygments
+    Found existing installation: Pygments 2.19.2
+    Uninstalling Pygments-2.19.2:
+      Successfully uninstalled Pygments-2.19.2
+  Attempting uninstall: mdurl
+    Found existing installation: mdurl 0.1.2
+    Uninstalling mdurl-0.1.2:
+      Successfully uninstalled mdurl-0.1.2
+  Attempting uninstall: markdown-it-py
+    Found existing installation: markdown-it-py 4.0.0
+    Uninstalling markdown-it-py-4.0.0:
+      Successfully uninstalled markdown-it-py-4.0.0
+  Attempting uninstall: rich
+    Found existing installation: rich 14.2.0
+    Uninstalling rich-14.2.0:
+      Successfully uninstalled rich-14.2.0
+Successfully installed markdown-it-py-4.0.0 mdurl-0.1.2 pygments-2.19.2 rich-14.2.0
+
+[notice] A new release of pip is available: 24.0 -> 25.3
+[notice] To update, run: pip install --upgrade pip
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[11:39:09] ❗️ installer returned a non-zero exit code
+[11:39:09] ❗️ Error during processing dependencies! Please fix the error and push an update, or try restarting the app.
+[11:40:45] 🐙 Pulling code changes from Github...
+[11:40:45] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+error: Couldn't parse requirement in `requirements.txt` at position 0
+  Caused by: expected version to start with a number, but no leading ASCII digits were found
+python_version == "3.11"
+               ^^^^^^^^^
+Checking if Streamlit is installed
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Audited 1 package in 1ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+
+──────────────────────────────────────── pip ───────────────────────────────────────────
+
+Using standard pip install.
+Collecting en-core-web-sm==3.7.1 (from -r /mount/src/ai-resume-shortlistingg/requirements.txt (line 14))
+  Downloading https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl (12.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 220.8 MB/s eta 0:00:00[2025-11-19 11:40:48.032838] 
+ERROR: Could not find a version that satisfies the requirement python_version=="3.11" (from versions: 0.0.2)
+ERROR: No matching distribution found for python_version=="3.11"
+
+[notice] A new release of pip is available: 24.0 -> 25.3
+[notice] To update, run: pip install --upgrade pip
+Checking if Streamlit is installed
+Installing rich for an improved exception logging
+Using standard pip install.
+Collecting rich>=10.14.0
+  Downloading rich-14.2.0-py3-none-any.whl.metadata (18 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=10.14.0)
+  Downloading markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich>=10.14.0)
+  Downloading pygments-2.19.2-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=10.14.0)
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Downloading rich-14.2.0-py3-none-any.whl (243 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.4/243.4 kB 14.9 MB/s eta 0:00:00[2025-11-19 11:40:49.182957] 
+Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 124.3 MB/s eta 0:00:00[2025-11-19 11:40:49.195640] 
+Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 85.4 MB/s eta 0:00:00[2025-11-19 11:40:49.221390] 
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Installing collected packages: pygments, mdurl, markdown-it-py, rich
+  Attempting uninstall: pygments
+    Found existing installation: Pygments 2.19.2
+    Uninstalling Pygments-2.19.2:
+      Successfully uninstalled Pygments-2.19.2
+  Attempting uninstall: mdurl
+    Found existing installation: mdurl 0.1.2
+    Uninstalling mdurl-0.1.2:
+      Successfully uninstalled mdurl-0.1.2
+  Attempting uninstall: markdown-it-py
+    Found existing installation: markdown-it-py 4.0.0
+    Uninstalling markdown-it-py-4.0.0:
+      Successfully uninstalled markdown-it-py-4.0.0
+  Attempting uninstall: rich
+    Found existing installation: rich 14.2.0
+    Uninstalling rich-14.2.0:
+      Successfully uninstalled rich-14.2.0
+Successfully installed markdown-it-py-4.0.0 mdurl-0.1.2 pygments-2.19.2 rich-14.2.0
+
+[notice] A new release of pip is available: 24.0 -> 25.3
+[notice] To update, run: pip install --upgrade pip
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[11:40:51] ❗️ installer returned a non-zero exit code
+[11:43:25] 🐙 Pulling code changes from Github...
+[11:43:26] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Resolved 107 packages in 1.10s
+[11:44:05] ❗️ We have encountered an unexpected problem. If this issue persists, please contact support
+Prepared 103 packages in 38.67s
+Uninstalled 1 package in 11ms
+Installed 103 packages in 621ms
+ + altair==5.5.0
+ + annotated-types==0.7.0
+ + attrs==25.4.0
+ + blinker==1.9.0
+ + blis==0.7.11
+ + cachetools==5.5.2
+ + catalogue==2.0.10
+ [2025-11-19 11:44:06.868898] + certifi==2025.11.12
+ + charset-normalizer==3.4.4
+ + click==8.3.1
+ + cloudpathlib==0.16.0
+ + confection==0.1.5
+ + cymem==2.0.13
+ + dnspython==2.8.0
+ + email-validator==2.3.0
+ + en-core-web-sm==3.7.1 (from https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl)
+ + filelock==[2025-11-19 11:44:06.869159] 3.20.0
+ + fsspec==2025.10.0
+ + gitdb==4.0.12
+ + gitpython==3.1.45
+ + hf-xet==1.2.0
+ + huggingface-hub==0.36.0
+ + idna==3.11
+ + jinja2==3.1.6
+ + joblib==1.5.2
+ + jsonschema==4.25.1
+ + jsonschema-specifications==2025.9.1
+ +[2025-11-19 11:44:06.869429]  langcodes==3.5.0
+ + language-data==1.3.0
+ + lxml==6.0.2
+ + marisa-trie==1.3.1
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ + murmurhash[2025-11-19 11:44:06.869702] ==1.0.15
+ + narwhals==2.12.0
+ + networkx==3.5
+ + numpy==2.3.5
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ [2025-11-19 11:44:06.869902] + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90[2025-11-19 11:44:06.870112] 
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93[2025-11-19 11:44:06.870367] 
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.5
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvshmem-cu12==3.3.20
+ + nvidia-nvtx-cu12==12.8.90[2025-11-19 11:44:06.870531] 
+ + packaging==24.2
+ + pandas==2.3.3
+ + phonenumbers==9.0.18
+ + pillow==10.4.0
+ + plotly==6.5.0
+ + preshed==3.0.12
+ + protobuf==5.29.5
+ + pyarrow==22.0.0
+ + pydantic==2.12.4
+ + [2025-11-19 11:44:06.870629] pydantic-core==2.41.5
+ + pydeck==0.9.1
+ + pypdf2==3.0.1
+ + python-dateutil==2.9.0.post0
+ + python-docx==1.2.0
+ + pytz==2025.2
+ + pyyaml==6.0.3
+ + referencing==0.37.0
+ + regex==2025.11.3
+ + requests==2.32.5
+ - rich==14.2.0
+ + rich==13.9.4
+ + rpds-py==0.29.0
+ + safetensors==0.6.2
+ + scikit-learn==1.7.2
+ + scipy==1.16.3
+ + six==1.17.0
+ + smart-open==6.4.0
+ + smmap==5.0.2
+ + spacy==3.7.2
+ + spacy-legacy==3.0.12
+ + spacy-loggers==1.0.5
+ + srsly==[2025-11-19 11:44:06.871499] 2.5.2
+ + streamlit==1.39.0
+ + sympy==1.14.0
+ + tenacity==9.1.2
+ + thinc==8.2.4
+ + threadpoolctl==3.6.0
+ +[2025-11-19 11:44:06.871614]  tokenizers==0.22.1
+ + toml==0.10.2
+ + torch==2.9.1
+ + tornado==6.5.2
+ + tqdm==4.67.1
+ + transformers==[2025-11-19 11:44:06.871730] 4.57.1
+ + triton==3.5.1
+ + typer==0.9.4
+ + typing-extensions==4.15.0
+ + typing-inspection==0.4.2
+ + tzdata==2025.2
+ [2025-11-19 11:44:06.871842] + urllib3==2.5.0
+ + wasabi==1.1.3
+ + watchdog==5.0.3
+ + weasel==0.3.4
+Checking if Streamlit is installed
+Found Streamlit version 1.39.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Audited 1 package in 7ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[11:44:09] 🐍 Python dependencies were installed from /mount/src/ai-resume-shortlistingg/requirements.txt using uv.
+[11:44:09] 📦 Processed dependencies!
+
+
+
+[11:44:12] 🔄 Updated app!
+[11:44:12] ❗️ We have encountered an unexpected problem. If this issue persists, please contact support
+[11:47:32] 🐙 Pulling code changes from Github...
+[11:47:33] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Resolved 112 packages in 638ms
+Prepared 37 packages in 38.63s
+Uninstalled 27 packages in 945ms
+Installed 37 packages in 711ms
+ + cffi==2.0.0
+ + cryptography==46.0.3
+ - email-validator==2.3.0
+ + email-validator==2.1.0
+ - huggingface-hub==0.36.0
+ + huggingface-hub==0.20.3
+ + nltk==3.8.1
+ - numpy==2.3.5
+ + numpy==1.26.2
+ - nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cublas-cu12==[2025-11-19 11:48:14.688724] 12.1.3.1
+ - nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-cupti-cu12==12.1.105
+ - nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-nvrtc-cu12==12.1.105
+ - nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cuda-runtime-cu12==12.1.105
+ - nvidia-cudnn-cu12==9.10.2.21
+ + [2025-11-19 11:48:14.688918] nvidia-cudnn-cu12==8.9.2.26
+ - nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufft-cu12==11.0.2.54
+ - nvidia-curand-cu12==10.3.9.90
+ + nvidia-curand-cu12==10.3.2.106
+ - nvidia-cusolver-cu12==11.7.3.90[2025-11-19 11:48:14.689108] 
+ + nvidia-cusolver-cu12==11.4.5.107
+ - nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparse-cu12==12.1.0.106
+ - nvidia-nccl-cu12==2.27.5
+ + nvidia-nccl-cu12==2.18.1
+ - nvidia-nvjitlink-cu12==12.8.93[2025-11-19 11:48:14.689314] 
+ + nvidia-nvjitlink-cu12==12.9.86
+ - nvidia-nvtx-cu12==12.8.90
+ + nvidia-nvtx-cu12==12.1.105
+ - pandas==2.3.3[2025-11-19 11:48:14.689530] 
+ + pandas==2.1.4
+ + pdfminer-six==20221105
+ + pdfplumber==0.10.3
+ - phonenumbers==9.0.18
+ +[2025-11-19 11:48:14.689640]  phonenumbers==8.13.26
+ - plotly==6.5.0
+ + plotly==5.17.0
+ + pycparser==2.23
+ + [2025-11-19 11:48:14.689735] pypdfium2==5.0.0
+ - python-docx==1.2.0
+ + python-docx==1.1.0
+ - requests==2.32.5
+ + requests==2.31.0
+ - [2025-11-19 11:48:14.689828] scikit-learn==1.7.2
+ + scikit-learn==1.3.2
+ + sentence-transformers==2.2.2
+ + sentencepiece==0.2.1
+ - thinc[2025-11-19 11:48:14.689960] ==8.2.4
+ + thinc==8.2.5
+ - tokenizers==0.22.1
+ + tokenizers==0.15.2
+ - torch==2.9.1
+ + torch[2025-11-19 11:48:14.690056] ==2.1.0
+ + torchvision==0.16.0
+ - tqdm==4.67.1
+ + tqdm==4.66.1
+ - transformers==4.57.1[2025-11-19 11:48:14.690209] 
+ + transformers==4.36.0
+ - triton==3.5.1
+ + triton==2.1.0
+warning: `email-validator==2.1.0` is yanked (reason: "Forgot to drop Python 3.7 from python_requires, see https://github.com/JoshData/python-email-validator/pull/118")
+Checking if Streamlit is installed
+Found Streamlit version 1.39.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.14 environment at /home/adminuser/venv
+Audited 1 package in 6ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[11:48:16] 🐍 Python dependencies were installed from /mount/src/ai-resume-shortlistingg/requirements.txt using uv.
+[11:48:16] 📦 Processed dependencies!
+  Stopping...
+
+
+
+[11:48:20] 🔄 Updated app!
+[11:48:20] ❗️ We have encountered an unexpected problem. If this issue persists, please contact support
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:88 in exec_func_with_error_handling                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:579 in code_to_exec                                     
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:683 in <module>                    
+                                                                                
+    680 │   # Main application entry point                                      
+    681 if __name__ == "__main__":                                              
+    682 │   │   app = ResumeShortlistingApp()                                   
+  ❱ 683 │   │   app.run()                                                       
+    684                                                                         
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:90 in run                          
+                                                                                
+     87 │   │   st.markdown("---")                                              
+     88 │   │                                                                   
+     89 │   │   # Sidebar                                                       
+  ❱  90 │   │   self.render_sidebar()                                           
+     91 │   │                                                                   
+     92 │   │   # Main content based on selected page                           
+     93 │   │   page = st.session_state.get('page', 'Upload Resumes')           
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:107 in render_sidebar              
+                                                                                
+    104 │   def render_sidebar(self):                                           
+    105 │   │   """Render sidebar navigation"""                                 
+    106 │   │   with st.sidebar:                                                
+  ❱ 107 │   │   │   st.image("https://via.placeholder.com/200x80/667eea/ffffff  
+    108 │   │   use_container_width=True)                                       
+    109                                                                         
+    110                                                                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/metrics_  
+  util.py:410 in wrapped_func                                                   
+────────────────────────────────────────────────────────────────────────────────
+TypeError: ImageMixin.image() got an unexpected keyword argument 
+'use_container_width'
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:88 in exec_func_with_error_handling                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:579 in code_to_exec                                     
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:683 in <module>                    
+                                                                                
+    680 │   # Main application entry point                                      
+    681 if __name__ == "__main__":                                              
+    682 │   │   app = ResumeShortlistingApp()                                   
+  ❱ 683 │   │   app.run()                                                       
+    684                                                                         
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:90 in run                          
+                                                                                
+     87 │   │   st.markdown("---")                                              
+     88 │   │                                                                   
+     89 │   │   # Sidebar                                                       
+  ❱  90 │   │   self.render_sidebar()                                           
+     91 │   │                                                                   
+     92 │   │   # Main content based on selected page                           
+     93 │   │   page = st.session_state.get('page', 'Upload Resumes')           
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:107 in render_sidebar              
+                                                                                
+    104 │   def render_sidebar(self):                                           
+    105 │   │   """Render sidebar navigation"""                                 
+    106 │   │   with st.sidebar:                                                
+  ❱ 107 │   │   │   st.image("https://via.placeholder.com/200x80/667eea/ffffff  
+    108 │   │   use_container_width=True)                                       
+    109                                                                         
+    110                                                                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/metrics_  
+  util.py:410 in wrapped_func                                                   
+────────────────────────────────────────────────────────────────────────────────
+TypeError: ImageMixin.image() got an unexpected keyword argument 
+'use_container_width'
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:88 in exec_func_with_error_handling                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:579 in code_to_exec                                     
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:683 in <module>                    
+                                                                                
+    680 │   # Main application entry point                                      
+    681 if __name__ == "__main__":                                              
+    682 │   │   app = ResumeShortlistingApp()                                   
+  ❱ 683 │   │   app.run()                                                       
+    684                                                                         
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:90 in run                          
+                                                                                
+     87 │   │   st.markdown("---")                                              
+     88 │   │                                                                   
+     89 │   │   # Sidebar                                                       
+  ❱  90 │   │   self.render_sidebar()                                           
+     91 │   │                                                                   
+     92 │   │   # Main content based on selected page                           
+     93 │   │   page = st.session_state.get('page', 'Upload Resumes')           
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:107 in render_sidebar              
+                                                                                
+    104 │   def render_sidebar(self):                                           
+    105 │   │   """Render sidebar navigation"""                                 
+    106 │   │   with st.sidebar:                                                
+  ❱ 107 │   │   │   st.image("https://via.placeholder.com/200x80/667eea/ffffff  
+    108 │   │   use_container_width=True)                                       
+    109                                                                         
+    110                                                                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/metrics_  
+  util.py:410 in wrapped_func                                                   
+────────────────────────────────────────────────────────────────────────────────
+TypeError: ImageMixin.image() got an unexpected keyword argument 
+'use_container_width'
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:88 in exec_func_with_error_handling                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:579 in code_to_exec                                     
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:683 in <module>                    
+                                                                                
+    680 │   # Main application entry point                                      
+    681 if __name__ == "__main__":                                              
+    682 │   │   app = ResumeShortlistingApp()                                   
+  ❱ 683 │   │   app.run()                                                       
+    684                                                                         
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:90 in run                          
+                                                                                
+     87 │   │   st.markdown("---")                                              
+     88 │   │                                                                   
+     89 │   │   # Sidebar                                                       
+  ❱  90 │   │   self.render_sidebar()                                           
+     91 │   │                                                                   
+     92 │   │   # Main content based on selected page                           
+     93 │   │   page = st.session_state.get('page', 'Upload Resumes')           
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:107 in render_sidebar              
+                                                                                
+    104 │   def render_sidebar(self):                                           
+    105 │   │   """Render sidebar navigation"""                                 
+    106 │   │   with st.sidebar:                                                
+  ❱ 107 │   │   │   st.image("https://via.placeholder.com/200x80/667eea/ffffff  
+    108 │   │   use_container_width=True)                                       
+    109                                                                         
+    110                                                                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/metrics_  
+  util.py:410 in wrapped_func                                                   
+────────────────────────────────────────────────────────────────────────────────
+TypeError: ImageMixin.image() got an unexpected keyword argument 
+'use_container_width'
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:88 in exec_func_with_error_handling                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:579 in code_to_exec                                     
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:683 in <module>                    
+                                                                                
+    680 │   # Main application entry point                                      
+    681 if __name__ == "__main__":                                              
+    682 │   │   app = ResumeShortlistingApp()                                   
+  ❱ 683 │   │   app.run()                                                       
+    684                                                                         
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:90 in run                          
+                                                                                
+     87 │   │   st.markdown("---")                                              
+     88 │   │                                                                   
+     89 │   │   # Sidebar                                                       
+  ❱  90 │   │   self.render_sidebar()                                           
+     91 │   │                                                                   
+     92 │   │   # Main content based on selected page                           
+     93 │   │   page = st.session_state.get('page', 'Upload Resumes')           
+                                                                                
+  /mount/src/ai-resume-shortlistingg/app2.py:107 in render_sidebar              
+                                                                                
+    104 │   def render_sidebar(self):                                           
+    105 │   │   """Render sidebar navigation"""                                 
+    106 │   │   with st.sidebar:                                                
+  ❱ 107 │   │   │   st.image("https://via.placeholder.com/200x80/667eea/ffffff  
+    108 │   │   use_container_width=True)                                       
+    109                                                                         
+    110                                                                         
+                                                                                
+  /home/adminuser/venv/lib/python3.11/site-packages/streamlit/runtime/metrics_  
+  util.py:410 in wrapped_func                                                   
+────────────────────────────────────────────────────────────────────────────────
+TypeError: ImageMixin.image() got an unexpected keyword argument 
+'use_container_width'
+[13:48:51] 🐙 Pulling code changes from Github...
+[13:48:52] 📦 Processing dependencies...
+[13:48:52] 📦 Processed dependencies!
+[13:48:53] 🔄 Updated app!
+[13:50:52] 🐙 Pulling code changes from Github...
+[13:50:52] 📦 Processing dependencies...
+[13:50:52] 📦 Processed dependencies!
+[13:50:54] 🔄 Updated app!
+[14:03:45] 🐙 Pulling code changes from Github...
+[14:03:46] 📦 Processing dependencies...
+[14:03:46] 📦 Processed dependencies!
+[14:03:47] 🔄 Updated app!
