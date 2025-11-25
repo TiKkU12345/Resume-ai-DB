@@ -4,6 +4,10 @@ pandas==2.1.4
 numpy==1.26.2
 plotly==5.17.0
 
+# ===== DATABASE =====
+supabase==2.3.4
+python-dotenv==1.0.0
+
 # ===== NLP + RESUME PARSING =====
 spacy==3.7.2
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
@@ -24,3 +28,5 @@ sentence-transformers==2.2.2
 huggingface-hub==0.20.3
 tqdm==4.66.1
 requests==2.31.0
+
+
