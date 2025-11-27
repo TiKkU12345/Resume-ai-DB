@@ -303,7 +303,7 @@ def render_auth_page():
         st.markdown("""
         <div style='text-align: center; color: #666; font-size: 12px;'>
             <p>Powered by AI & Machine Learning</p>
-            <p>© 2024 Resume Shortlisting System</p>
+            <p>© 2025 Resume Shortlisting System</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -521,4 +521,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 """
