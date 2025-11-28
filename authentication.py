@@ -1,12 +1,11 @@
 """
 Authentication Module with Supabase
-User login, signup, and session management
+User login, signup, and session management with Name field
 """
 
 import streamlit as st
 from supabase import create_client, Client
 from datetime import datetime
-import hashlib
 import re
 
 class AuthManager:
@@ -37,12 +36,24 @@ class AuthManager:
         return st.session_state.user
     
     def sign_up(self, email: str, password: str, full_name: str = "") -> tuple:
-        """Register new user"""
+        """Register new user - Only allowed emails can signup"""
         if not self.client:
             return False, "Authentication not configured"
         
         try:
+            # SECURITY: Only allow specific email(s) to signup
+            ALLOWED_EMAILS = [
+                "arunav11a31.hts21@gmail.com",  # 
+                "arunav.jsr.0604@gmail.com", 
+            ]
+            
+            if email.lower() not in [e.lower() for e in ALLOWED_EMAILS]:
+                return False, "⛔ Signup restricted. Only authorized emails can register."
+            
             # Validate inputs
+            if not full_name or full_name.strip() == "":
+                return False, "Please enter your full name"
+            
             if not self._validate_email(email):
                 return False, "Invalid email format"
             
@@ -55,13 +66,13 @@ class AuthManager:
                 "password": password,
                 "options": {
                     "data": {
-                        "full_name": full_name
+                        "full_name": full_name.strip()
                     }
                 }
             })
             
             if response.user:
-                return True, "Account created successfully! Please check your email to verify."
+                return True, f"Welcome {full_name}! Please check your email to verify your account."
             else:
                 return False, "Failed to create account"
         
@@ -93,7 +104,7 @@ class AuthManager:
                 }
                 st.session_state.access_token = response.session.access_token
                 
-                return True, "Login successful!"
+                return True, f"Welcome back, {st.session_state.user['full_name']}!"
             else:
                 return False, "Invalid credentials"
         
@@ -134,13 +145,16 @@ class AuthManager:
             return False, "Not authenticated"
         
         try:
+            if not full_name or full_name.strip() == "":
+                return False, "Name cannot be empty"
+            
             self.client.auth.update_user({
                 "data": {
-                    "full_name": full_name
+                    "full_name": full_name.strip()
                 }
             })
             
-            st.session_state.user['full_name'] = full_name
+            st.session_state.user['full_name'] = full_name.strip()
             return True, "Profile updated successfully!"
         except Exception as e:
             return False, f"Update failed: {str(e)}"
@@ -244,19 +258,20 @@ def render_auth_page():
                 st.markdown("### Create Account")
                 
                 full_name = st.text_input(
-                    "Full Name",
+                    "Full Name *",
                     placeholder="John Doe",
-                    key="signup_name"
+                    key="signup_name",
+                    help="Your name will be displayed in the system"
                 )
                 
                 email = st.text_input(
-                    "Email",
+                    "Email *",
                     placeholder="your.email@company.com",
                     key="signup_email"
                 )
                 
                 password = st.text_input(
-                    "Password",
+                    "Password *",
                     type="password",
                     placeholder="••••••••",
                     help="At least 8 characters with letters and numbers",
@@ -264,7 +279,7 @@ def render_auth_page():
                 )
                 
                 confirm_password = st.text_input(
-                    "Confirm Password",
+                    "Confirm Password *",
                     type="password",
                     placeholder="••••••••",
                     key="signup_confirm"
@@ -294,7 +309,7 @@ def render_auth_page():
                         
                         if success:
                             st.success(message)
-                            st.info("You can now login with your credentials")
+                            st.info("📧 Check your email to verify your account, then login!")
                         else:
                             st.error(message)
         
@@ -425,101 +440,3 @@ def render_auth_sidebar():
             if st.button("Login / Sign Up", use_container_width=True, type="primary"):
                 st.session_state.page = 'Login'
                 st.rerun()
-
-
-# Example: Protected page usage
-@require_auth
-def protected_page():
-    """Example of a protected page"""
-    st.header("🔒 Protected Content")
-    st.write("This page requires authentication!")
-    
-    user = st.session_state.user
-    st.write(f"Welcome, {user['full_name']}!")
-
-
-# Integration with main app
-def integrate_auth_with_app():
-    """
-    How to integrate authentication with your main app
-    
-    Add this to your app.py:
-    """
-    
-    code_example = '''
-# In app.py, at the top:
-from authentication import AuthManager, render_auth_page, render_auth_sidebar, require_auth
-
-class ResumeShortlistingApp:
-    def __init__(self):
-        self.auth_manager = AuthManager()  # Add this
-        # ... rest of init
-    
-    def run(self):
-        # Check authentication first
-        if not self.auth_manager.is_authenticated():
-            render_auth_page()
-            return
-        
-        # Show sidebar auth status
-        render_auth_sidebar()
-        
-        # Rest of your app code...
-        st.title("🎯 AI Resume Shortlisting System")
-        # ... your existing code
-
-# Or protect specific pages:
-@require_auth
-def page_job_description(self):
-    """This page requires login"""
-    st.header("📝 Job Description")
-    # ... rest of code
-'''
-    
-    return code_example
-
-
-# SQL to create users table in Supabase (if not using Supabase Auth)
-USERS_TABLE_SQL = """
--- If you want custom user profiles beyond Supabase Auth:
-
-CREATE TABLE user_profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id),
-    full_name TEXT,
-    company_name TEXT,
-    job_title TEXT,
-    phone TEXT,
-    avatar_url TEXT,
-    preferences JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
-
--- Policy: Users can only see/edit their own profile
-CREATE POLICY "Users can view own profile" 
-ON user_profiles FOR SELECT 
-USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile" 
-ON user_profiles FOR UPDATE 
-USING (auth.uid() = id);
-
--- Function to create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.user_profiles (id, full_name)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name');
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger: Create profile when user signs up
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-"""
