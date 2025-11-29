@@ -3,6 +3,7 @@ streamlit==1.39.0
 pandas==2.1.4
 numpy==1.26.2
 plotly==5.17.0
+openai==1.54.0
 
 # ===== DATABASE =====
 supabase==1.0.3
@@ -28,6 +29,7 @@ sentence-transformers==2.2.2
 huggingface-hub==0.20.3
 tqdm==4.66.1
 requests==2.31.0
+
 
 
 
