@@ -101,7 +101,7 @@ class ResumeShortlistingApp:
             self.auth_manager = None
         
         # Initialize session state
-        self._initialize_session_state()
+        # self._initialize_session_state()
     
     def _initialize_session_state(self):
         """Initialize all session state variables"""
@@ -1071,4 +1071,5 @@ Responsibilities:
 # Main application entry point
 if __name__ == "__main__":
     app = ResumeShortlistingApp()
+
     app.run()
