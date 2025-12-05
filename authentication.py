@@ -45,6 +45,7 @@ class AuthManager:
             ALLOWED_EMAILS = [
                 "arunav11a31.hts21@gmail.com",  # 
                 "arunav.jsr.0604@gmail.com", 
+                "6801788@rungta.org",
             ]
             
             if email.lower() not in [e.lower() for e in ALLOWED_EMAILS]:
@@ -440,3 +441,4 @@ def render_auth_sidebar():
             if st.button("Login / Sign Up", use_container_width=True, type="primary"):
                 st.session_state.page = 'Login'
                 st.rerun()
+
