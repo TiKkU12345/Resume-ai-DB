@@ -313,7 +313,7 @@ def render_auth_page():
         <div style='text-align: center; color: #666; font-size: 12px; padding: 20px 0;'>
             <p style='margin: 5px 0;'>🔐 Secure Access | Admin Approval Required</p>
             <p style='margin: 5px 0;'>Powered by AI & Machine Learning</p>
-            <p style='margin: 5px 0;'>© 2024 AI Resume Shortlisting System. All rights reserved.</p>
+            <p style='margin: 5px 0;'>© 2025 AI Resume Shortlisting System. All rights reserved.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -365,3 +365,4 @@ def require_auth(func):
         return func(*args, **kwargs)
     
     return wrapper
+
