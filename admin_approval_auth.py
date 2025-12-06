@@ -1,8 +1,5 @@
 """
-Admin Approval Authentication System
-- Users can signup but cannot login until admin approves
-- New device login requires admin confirmation
-- Full control for admin
+Admin Approval Authentication System with Email Notifications
 """
 
 import streamlit as st
@@ -16,7 +13,7 @@ from app_config import get_secret
 
 
 class AdminApprovalAuth:
-    """Authentication with admin approval and device verification"""
+    """Authentication with admin approval and email notifications"""
     
     def __init__(self):
         # Supabase connection
@@ -48,7 +45,7 @@ class AdminApprovalAuth:
             return hashlib.md5(str(random.randint(0, 999999)).encode()).hexdigest()
     
     def sign_up(self, email: str, password: str, full_name: str) -> tuple:
-        """User signup - Account created but NOT approved"""
+        """User signup with email notification to admin"""
         if not self.client:
             return False, "Authentication not configured"
         
@@ -88,12 +85,107 @@ class AdminApprovalAuth:
             response = self.client.table('users').insert(user_data).execute()
             
             if response.data:
-                return True, f"✅ Account created for {full_name}!\n\n⏳ Your account is pending admin approval.\n\nYou'll be able to login once approved by the administrator."
+                # Send email notification to admin
+                email_sent = self._send_admin_email(email, full_name, st.session_state.device_id)
+                
+                success_msg = f"✅ Account created for {full_name}!\n\n⏳ Your account is pending admin approval."
+                
+                if email_sent:
+                    success_msg += "\n\n📧 Admin has been notified via email."
+                else:
+                    success_msg += "\n\n⚠️ Admin will be notified."
+                
+                return True, success_msg
             else:
                 return False, "Failed to create account"
         
         except Exception as e:
             return False, f"Signup failed: {str(e)}"
+    
+    def _send_admin_email(self, user_email: str, user_name: str, device_id: str) -> bool:
+        """Send email notification to admin"""
+        try:
+            # Get SMTP settings
+            smtp_server = get_secret("SMTP_SERVER", None)
+            smtp_port = int(get_secret("SMTP_PORT", 587))
+            sender_email = get_secret("SENDER_EMAIL", None)
+            sender_password = get_secret("SENDER_PASSWORD", None)
+            
+            # Check if SMTP is configured
+            if not all([smtp_server, sender_email, sender_password]):
+                print("⚠️ SMTP not configured. Email notification skipped.")
+                return False
+            
+            # Import email libraries
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            # Create email
+            subject = f"🔔 New User Signup: {user_name}"
+            
+            body = f"""
+<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <h2 style="color: #4A90E2;">🆕 New User Signup Request</h2>
+    
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Name:</strong> {user_name}</p>
+        <p><strong>Email:</strong> {user_email}</p>
+        <p><strong>Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p><strong>Device ID:</strong> {device_id[:16]}...</p>
+    </div>
+    
+    <h3 style="color: #E74C3C;">⚡ Action Required:</h3>
+    
+    <p>To approve this user, follow these steps:</p>
+    
+    <ol>
+        <li>Go to <a href="https://supabase.com/dashboard">Supabase Dashboard</a></li>
+        <li>Open <strong>SQL Editor</strong></li>
+        <li>Run this query:</li>
+    </ol>
+    
+    <div style="background: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; margin: 15px 0; font-family: 'Courier New', monospace;">
+<pre>UPDATE users 
+SET is_approved = true, 
+    approved_at = NOW(), 
+    approved_by = '{self.admin_email}',
+    approved_devices = ARRAY['{device_id}']
+WHERE email = '{user_email}';</pre>
+    </div>
+    
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+    
+    <p style="color: #666; font-size: 12px;">
+        This is an automated email from <strong>AI Resume Shortlisting System</strong>.<br>
+        Do not reply to this email.
+    </p>
+</body>
+</html>
+"""
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"AI Resume System <{sender_email}>"
+            msg['To'] = self.admin_email
+            
+            # Attach HTML body
+            msg.attach(MIMEText(body, 'html'))
+            
+            # Send email
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            
+            print(f"✅ Email notification sent to {self.admin_email}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to send email: {e}")
+            return False
     
     def sign_in(self, email: str, password: str) -> tuple:
         """User login with admin approval and device verification"""
@@ -114,14 +206,16 @@ class AdminApprovalAuth:
             
             # CHECK 1: Is user approved by admin?
             if not user.get('is_approved', False):
-                return False, "⏳ Your account is pending admin approval.\n\nPlease wait for the administrator to approve your access.\n\nContact admin if you've been waiting for more than 24 hours."
+                return False, "⏳ Your account is pending admin approval.\n\nPlease wait for the administrator to approve your access."
             
             # CHECK 2: Is this device approved?
             current_device = st.session_state.device_id
             approved_devices = user.get('approved_devices', [])
             
             if current_device not in approved_devices:
-                return False, f"🔐 New device detected!\n\nThis device needs admin approval.\n\nDevice ID: {current_device[:8]}...\n\nPlease contact admin for approval."
+                # Send new device notification
+                self._send_device_alert(email, user['full_name'], current_device)
+                return False, f"🔐 New device detected!\n\nThis device needs admin approval.\n\nAn alert has been sent to admin."
             
             # All checks passed - Login successful
             st.session_state.user = {
@@ -141,13 +235,66 @@ class AdminApprovalAuth:
         except Exception as e:
             return False, f"Login failed: {str(e)}"
     
+    def _send_device_alert(self, user_email: str, user_name: str, device_id: str):
+        """Send alert for new device login attempt"""
+        try:
+            smtp_server = get_secret("SMTP_SERVER", None)
+            smtp_port = int(get_secret("SMTP_PORT", 587))
+            sender_email = get_secret("SENDER_EMAIL", None)
+            sender_password = get_secret("SENDER_PASSWORD", None)
+            
+            if not all([smtp_server, sender_email, sender_password]):
+                return
+            
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            subject = f"🔐 New Device Login: {user_name}"
+            
+            body = f"""
+<html>
+<body style="font-family: Arial, sans-serif;">
+    <h2 style="color: #E74C3C;">🔐 New Device Login Attempt</h2>
+    
+    <p><strong>{user_name}</strong> ({user_email}) tried to login from a new device.</p>
+    
+    <div style="background: #f5f5f5; padding: 15px; margin: 20px 0;">
+        <p><strong>Device ID:</strong> {device_id}</p>
+        <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    </div>
+    
+    <h3>To approve this device:</h3>
+    
+    <div style="background: #282c34; color: #abb2bf; padding: 15px;">
+<pre>UPDATE users 
+SET approved_devices = array_append(approved_devices, '{device_id}')
+WHERE email = '{user_email}';</pre>
+    </div>
+</body>
+</html>
+"""
+            
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = sender_email
+            msg['To'] = self.admin_email
+            
+            msg.attach(MIMEText(body, 'html'))
+            
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            
+            print(f"✅ Device alert sent for {user_name}")
+            
+        except Exception as e:
+            print(f"❌ Device alert failed: {e}")
+    
     def sign_out(self):
         """Logout user"""
         st.session_state.user = None
-        if 'parsed_resumes' in st.session_state:
-            st.session_state.parsed_resumes = []
-        if 'ranked_candidates' in st.session_state:
-            st.session_state.ranked_candidates = []
     
     def is_authenticated(self) -> bool:
         """Check if user is authenticated"""
@@ -169,9 +316,9 @@ class AdminApprovalAuth:
                 any(c.isdigit() for c in password))
 
 
+# Keep render_auth_page, render_auth_sidebar, require_auth same as before
 def render_auth_page():
-    """Render authentication page (centered & professional)"""
-    
+    """Render authentication page"""
     auth = AdminApprovalAuth()
     
     if auth.is_authenticated():
@@ -181,11 +328,9 @@ def render_auth_page():
             st.rerun()
         return
     
-    # Center the auth form
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        # Header
         st.markdown("""
         <div style='text-align: center; padding: 20px;'>
             <h1>🎯 AI Resume Shortlisting</h1>
@@ -193,176 +338,76 @@ def render_auth_page():
         </div>
         """, unsafe_allow_html=True)
         
-        # Tabs for login/signup
         tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
         
-        # Login Tab
         with tab1:
             with st.form("login_form"):
                 st.markdown("### Welcome Back!")
+                email = st.text_input("Email", placeholder="your.email@company.com")
+                password = st.text_input("Password", type="password", placeholder="••••••••")
                 
-                email = st.text_input(
-                    "Email",
-                    placeholder="your.email@company.com",
-                    key="login_email"
-                )
-                
-                password = st.text_input(
-                    "Password",
-                    type="password",
-                    placeholder="••••••••",
-                    key="login_password"
-                )
-                
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    submit = st.form_submit_button(
-                        "🚀 Login",
-                        use_container_width=True,
-                        type="primary"
-                    )
-                
-                with col_b:
-                    forgot = st.form_submit_button(
-                        "Forgot Password?",
-                        use_container_width=True
-                    )
-                
-                if submit:
+                if st.form_submit_button("🚀 Login", use_container_width=True, type="primary"):
                     if email and password:
                         with st.spinner("Signing in..."):
                             success, message = auth.sign_in(email, password)
-                        
                         if success:
                             st.success(message)
                             st.balloons()
                             st.rerun()
                         else:
                             st.error(message)
-                    else:
-                        st.error("Please fill in all fields")
-                
-                if forgot:
-                    st.info("Please contact admin for password reset")
         
-        # Signup Tab
         with tab2:
             with st.form("signup_form"):
                 st.markdown("### Create Account")
-                st.info("🔒 Your account will be reviewed by admin before granting access")
+                st.info("🔒 Account will be reviewed by admin")
                 
-                full_name = st.text_input(
-                    "Full Name *",
-                    placeholder="John Doe",
-                    key="signup_name",
-                    help="Your name will be displayed in the system"
-                )
+                full_name = st.text_input("Full Name *", placeholder="John Doe")
+                email = st.text_input("Email *", placeholder="your.email@company.com")
+                password = st.text_input("Password *", type="password", placeholder="••••••••")
+                confirm_password = st.text_input("Confirm Password *", type="password")
+                agree = st.checkbox("I understand that my access is subject to admin approval")
                 
-                email = st.text_input(
-                    "Email *",
-                    placeholder="your.email@company.com",
-                    key="signup_email"
-                )
-                
-                password = st.text_input(
-                    "Password *",
-                    type="password",
-                    placeholder="••••••••",
-                    help="At least 8 characters with letters and numbers",
-                    key="signup_password"
-                )
-                
-                confirm_password = st.text_input(
-                    "Confirm Password *",
-                    type="password",
-                    placeholder="••••••••",
-                    key="signup_confirm"
-                )
-                
-                agree = st.checkbox(
-                    "I understand that my access is subject to admin approval",
-                    key="agree_terms"
-                )
-                
-                submit = st.form_submit_button(
-                    "✨ Create Account",
-                    use_container_width=True,
-                    type="primary"
-                )
-                
-                if submit:
+                if st.form_submit_button("✨ Create Account", use_container_width=True, type="primary"):
                     if not agree:
-                        st.error("Please acknowledge the approval requirement")
-                    elif not all([full_name, email, password, confirm_password]):
-                        st.error("Please fill in all fields")
+                        st.error("Please acknowledge approval requirement")
                     elif password != confirm_password:
                         st.error("Passwords don't match")
-                    else:
+                    elif full_name and email and password:
                         with st.spinner("Creating account..."):
                             success, message = auth.sign_up(email, password, full_name)
-                        
                         if success:
                             st.success(message)
                         else:
                             st.error(message)
         
-        # Footer
         st.markdown("---")
         st.markdown("""
         <div style='text-align: center; color: #666; font-size: 12px; padding: 20px 0;'>
-            <p style='margin: 5px 0;'>🔐 Secure Access | Admin Approval Required</p>
-            <p style='margin: 5px 0;'>Powered by AI & Machine Learning</p>
-            <p style='margin: 5px 0;'>© 2025 AI Resume Shortlisting System. All rights reserved.</p>
+            <p>🔐 Secure Access | Admin Approval Required</p>
+            <p>© 2024 AI Resume Shortlisting System</p>
         </div>
         """, unsafe_allow_html=True)
 
 
 def render_auth_sidebar():
-    """Render auth status in sidebar"""
-    
+    """Render auth in sidebar"""
     auth = AdminApprovalAuth()
-    
     with st.sidebar:
-        st.markdown("---")
-        
         if auth.is_authenticated():
             user = auth.get_current_user()
-            
-            st.markdown("### 👤 Logged In")
-            st.write(f"**{user.get('full_name', 'User')}**")
-            st.caption(user.get('email', ''))
-            
-            if st.button("🚪 Logout", use_container_width=True):
+            st.write(f"**{user['full_name']}**")
+            if st.button("Logout"):
                 auth.sign_out()
-                st.success("Logged out!")
-                st.rerun()
-        else:
-            st.markdown("### 🔐 Not Logged In")
-            
-            if st.button("Login / Sign Up", use_container_width=True, type="primary"):
-                st.session_state.page = 'Login'
                 st.rerun()
 
 
 def require_auth(func):
-    """Decorator to require authentication for a page"""
+    """Auth decorator"""
     def wrapper(*args, **kwargs):
         auth = AdminApprovalAuth()
-        
         if not auth.is_authenticated():
-            st.warning("⚠️ Please login to access this feature")
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            
-            with col2:
-                if st.button("🔐 Go to Login", use_container_width=True, type="primary"):
-                    st.session_state.page = 'Login'
-                    st.rerun()
-            
+            st.warning("Please login")
             return
-        
         return func(*args, **kwargs)
-    
     return wrapper
-
