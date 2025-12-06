@@ -5,6 +5,21 @@ FIXED VERSION - All errors resolved
 """
 
 import streamlit as st
+st.set_page_config(
+    page_title="AI Resume Shortlisting",
+    page_icon="🎯",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+if 'initialized' not in st.session_state:
+    st.session_state.initialized = True
+    st.session_state.user = None
+    st.session_state.parsed_resumes = []
+    st.session_state.ranked_candidates = []
+    st.session_state.current_job_id = None
+    st.session_state.page = 'Dashboard'
+    
 import pandas as pd
 import json
 import os
@@ -1073,3 +1088,4 @@ if __name__ == "__main__":
     app = ResumeShortlistingApp()
 
     app.run()
+
