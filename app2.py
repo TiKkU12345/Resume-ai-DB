@@ -5,13 +5,16 @@ FIXED VERSION - All errors resolved
 """
 
 import streamlit as st
+
+# Page configuration - ONLY ONCE!
 st.set_page_config(
-    page_title="AI Resume Shortlisting",
+    page_title="AI Resume Shortlisting System",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# Initialize session state
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.user = None
@@ -19,33 +22,29 @@ if 'initialized' not in st.session_state:
     st.session_state.ranked_candidates = []
     st.session_state.current_job_id = None
     st.session_state.page = 'Dashboard'
-    
+
+# Other imports
 import pandas as pd
 import json
 import os
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
-from resume_parser import ResumeParser
+from api_resume_parser import APIResumeParser as ResumeParser
 from job_resume_matcher import CandidateRanker, JobDescriptionParser
 from datetime import datetime
-from email_integration import EmailManager, render_email_panel
-from bulk_upload import render_bulk_upload_ui
-from interview_questions import render_question_generator_ui
-from database import SupabaseManager
-from authentication import (
-    AuthManager, 
-    render_auth_page, 
-    render_auth_sidebar, 
-    require_auth
-)
 
-# Page configuration
-st.set_page_config(
-    page_title="AI Resume Shortlisting System",
-    page_icon="📋",
-    layout="wide",
-    initial_sidebar_state="expanded"
+# Comment out missing modules for now
+# from email_integration import EmailManager, render_email_panel
+# from bulk_upload import render_bulk_upload_ui
+# from interview_questions import render_question_generator_ui
+
+from database import SupabaseManager
+from admin_approval_auth import (
+    AdminApprovalAuth as AuthManager,
+    render_auth_page,
+    render_auth_sidebar,
+    require_auth
 )
 
 # Custom CSS for better styling
@@ -107,6 +106,7 @@ class ResumeShortlistingApp:
             st.info("The app will continue with limited functionality (no persistence).")
             self.db_available = False
             self.db = None
+
         
         # Initialize authentication
         try:
@@ -1088,4 +1088,5 @@ if __name__ == "__main__":
     app = ResumeShortlistingApp()
 
     app.run()
+
 
