@@ -1,11 +1,10 @@
 """
 Admin Approval Authentication System
 - Users can signup but cannot login until admin approves
-- New device login requires admin confirmation via email
+- New device login requires admin confirmation
 - Full control for admin
 """
 
-import os
 import streamlit as st
 from supabase import create_client, Client
 from datetime import datetime
@@ -13,29 +12,13 @@ import hashlib
 import re
 import platform
 import socket
-
-from traitlets import default
+from app_config import get_secret
 
 
 class AdminApprovalAuth:
     """Authentication with admin approval and device verification"""
     
     def __init__(self):
-    # Import config helper
-        try:
-            from app_config import get_secret  # ← Changed
-        except ImportError:
-        # Fallback if app_config.py doesn't exist
-            def get_secret(key, default=None):
-                import os
-                value = os.getenv(key)
-                if value:
-                    return value
-                try:
-                    return st.secrets[key]
-                except:
-                    return default
-        
         # Supabase connection
         self.url = get_secret("SUPABASE_URL", "")
         self.key = get_secret("SUPABASE_KEY", "")
@@ -61,15 +44,11 @@ class AdminApprovalAuth:
             device_info = f"{platform.system()}-{platform.node()}-{socket.gethostname()}"
             return hashlib.md5(device_info.encode()).hexdigest()
         except:
-            # Fallback to random ID
             import random
             return hashlib.md5(str(random.randint(0, 999999)).encode()).hexdigest()
     
     def sign_up(self, email: str, password: str, full_name: str) -> tuple:
-        """
-        User signup - Account created but NOT approved
-        Admin will receive notification to approve
-        """
+        """User signup - Account created but NOT approved"""
         if not self.client:
             return False, "Authentication not configured"
         
@@ -92,7 +71,7 @@ class AdminApprovalAuth:
                 'email': email.lower(),
                 'password_hash': hashed_password,
                 'full_name': full_name.strip(),
-                'is_approved': False,  # ← Admin approval required
+                'is_approved': False,
                 'approved_at': None,
                 'approved_by': None,
                 'approved_devices': [],
@@ -109,9 +88,6 @@ class AdminApprovalAuth:
             response = self.client.table('users').insert(user_data).execute()
             
             if response.data:
-                # Log signup request
-                self._log_signup_request(email, full_name)
-                
                 return True, f"✅ Account created for {full_name}!\n\n⏳ Your account is pending admin approval.\n\nYou'll be able to login once approved by the administrator."
             else:
                 return False, "Failed to create account"
@@ -120,9 +96,7 @@ class AdminApprovalAuth:
             return False, f"Signup failed: {str(e)}"
     
     def sign_in(self, email: str, password: str) -> tuple:
-        """
-        User login with admin approval and device verification
-        """
+        """User login with admin approval and device verification"""
         if not self.client:
             return False, "Authentication not configured"
         
@@ -147,18 +121,14 @@ class AdminApprovalAuth:
             approved_devices = user.get('approved_devices', [])
             
             if current_device not in approved_devices:
-                # New device detected - Request admin approval
-                self._log_new_device_alert(email, user['full_name'], current_device)
-                
-                return False, f"🔐 New device detected!\n\nThis device needs admin approval.\n\nDevice ID: {current_device[:8]}...\n\nAn alert has been logged. Please contact admin for approval."
+                return False, f"🔐 New device detected!\n\nThis device needs admin approval.\n\nDevice ID: {current_device[:8]}...\n\nPlease contact admin for approval."
             
             # All checks passed - Login successful
             st.session_state.user = {
                 'id': user['id'],
                 'email': user['email'],
                 'full_name': user['full_name'],
-                'approved_at': user.get('approved_at'),
-                'is_admin': user.get('email') == self.admin_email
+                'approved_at': user.get('approved_at')
             }
             
             # Update last login
@@ -170,42 +140,6 @@ class AdminApprovalAuth:
         
         except Exception as e:
             return False, f"Login failed: {str(e)}"
-    
-    def _log_signup_request(self, user_email: str, user_name: str):
-        """Log signup request to activity_logs"""
-        try:
-            if self.client:
-                self.client.table('activity_logs').insert({
-                    'action_type': 'signup_request',
-                    'details': {
-                        'user_email': user_email,
-                        'user_name': user_name,
-                        'device_id': st.session_state.device_id,
-                        'timestamp': datetime.now().isoformat(),
-                        'message': f'New signup request from {user_name} ({user_email})'
-                    },
-                    'created_at': datetime.now().isoformat()
-                }).execute()
-        except Exception as e:
-            print(f"Failed to log signup request: {e}")
-    
-    def _log_new_device_alert(self, user_email: str, user_name: str, device_id: str):
-        """Log new device login attempt"""
-        try:
-            if self.client:
-                self.client.table('activity_logs').insert({
-                    'action_type': 'new_device_alert',
-                    'details': {
-                        'user_email': user_email,
-                        'user_name': user_name,
-                        'device_id': device_id,
-                        'timestamp': datetime.now().isoformat(),
-                        'message': f'New device login attempt by {user_name} ({user_email})'
-                    },
-                    'created_at': datetime.now().isoformat()
-                }).execute()
-        except Exception as e:
-            print(f"Failed to log device alert: {e}")
     
     def sign_out(self):
         """Logout user"""
@@ -223,30 +157,6 @@ class AdminApprovalAuth:
         """Get current authenticated user"""
         return st.session_state.user
     
-    def reset_password(self, email: str) -> tuple:
-        """Send password reset instructions"""
-        return False, "Password reset not implemented. Please contact admin."
-    
-    def update_profile(self, full_name: str) -> tuple:
-        """Update user profile"""
-        if not self.client or not st.session_state.user:
-            return False, "Not authenticated"
-        
-        try:
-            if not full_name or full_name.strip() == "":
-                return False, "Name cannot be empty"
-            
-            user_id = st.session_state.user['id']
-            
-            self.client.table('users').update({
-                'full_name': full_name.strip()
-            }).eq('id', user_id).execute()
-            
-            st.session_state.user['full_name'] = full_name.strip()
-            return True, "Profile updated successfully!"
-        except Exception as e:
-            return False, f"Update failed: {str(e)}"
-    
     def _validate_email(self, email: str) -> bool:
         """Validate email format"""
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -260,31 +170,36 @@ class AdminApprovalAuth:
 
 
 def render_auth_page():
-    """Render authentication page"""
+    """Render authentication page (centered & professional)"""
     
     auth = AdminApprovalAuth()
     
     if auth.is_authenticated():
-        render_profile_page(auth)
+        st.success(f"✅ Logged in as: {auth.get_current_user()['full_name']}")
+        if st.button("Logout", type="primary"):
+            auth.sign_out()
+            st.rerun()
         return
     
+    # Center the auth form
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
+        # Header
         st.markdown("""
         <div style='text-align: center; padding: 20px;'>
             <h1>🎯 AI Resume Shortlisting</h1>
-            <p style='color: #666;'>Admin-Approved Access Only</p>
+            <p style='color: #666;'>Sign in to access your recruitment dashboard</p>
         </div>
         """, unsafe_allow_html=True)
         
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Request Access"])
+        # Tabs for login/signup
+        tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
         
         # Login Tab
         with tab1:
             with st.form("login_form"):
-                st.markdown("### Login")
-                st.caption("⚠️ Only approved users can login")
+                st.markdown("### Welcome Back!")
                 
                 email = st.text_input(
                     "Email",
@@ -316,7 +231,7 @@ def render_auth_page():
                 
                 if submit:
                     if email and password:
-                        with st.spinner("Verifying..."):
+                        with st.spinner("Signing in..."):
                             success, message = auth.sign_in(email, password)
                         
                         if success:
@@ -329,22 +244,19 @@ def render_auth_page():
                         st.error("Please fill in all fields")
                 
                 if forgot:
-                    if email:
-                        success, message = auth.reset_password(email)
-                        st.info(message)
-                    else:
-                        st.error("Please enter your email")
+                    st.info("Please contact admin for password reset")
         
         # Signup Tab
         with tab2:
             with st.form("signup_form"):
-                st.markdown("### Request Access")
+                st.markdown("### Create Account")
                 st.info("🔒 Your account will be reviewed by admin before granting access")
                 
                 full_name = st.text_input(
                     "Full Name *",
                     placeholder="John Doe",
-                    key="signup_name"
+                    key="signup_name",
+                    help="Your name will be displayed in the system"
                 )
                 
                 email = st.text_input(
@@ -374,7 +286,7 @@ def render_auth_page():
                 )
                 
                 submit = st.form_submit_button(
-                    "✨ Request Access",
+                    "✨ Create Account",
                     use_container_width=True,
                     type="primary"
                 )
@@ -387,7 +299,7 @@ def render_auth_page():
                     elif password != confirm_password:
                         st.error("Passwords don't match")
                     else:
-                        with st.spinner("Sending request..."):
+                        with st.spinner("Creating account..."):
                             success, message = auth.sign_up(email, password, full_name)
                         
                         if success:
@@ -395,103 +307,15 @@ def render_auth_page():
                         else:
                             st.error(message)
         
+        # Footer
         st.markdown("---")
         st.markdown("""
-        <div style='text-align: center; color: #666; font-size: 12px;'>
-            <p>🔐 Secure Access | Admin Approval Required</p>
-            <p>© 2024 AI Resume Shortlisting System</p>
+        <div style='text-align: center; color: #666; font-size: 12px; padding: 20px 0;'>
+            <p style='margin: 5px 0;'>🔐 Secure Access | Admin Approval Required</p>
+            <p style='margin: 5px 0;'>Powered by AI & Machine Learning</p>
+            <p style='margin: 5px 0;'>© 2024 AI Resume Shortlisting System. All rights reserved.</p>
         </div>
         """, unsafe_allow_html=True)
-
-
-def render_profile_page(auth: AdminApprovalAuth):
-    """Render user profile page"""
-    
-    user = auth.get_current_user()
-    
-    st.header("👤 User Profile")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("### Account Information")
-        
-        with st.form("profile_form"):
-            full_name = st.text_input(
-                "Full Name",
-                value=user.get('full_name', ''),
-                key="profile_name"
-            )
-            
-            st.text_input(
-                "Email",
-                value=user.get('email', ''),
-                disabled=True,
-                help="Email cannot be changed"
-            )
-            
-            if user.get('approved_at'):
-                st.text_input(
-                    "Approved On",
-                    value=str(user.get('approved_at', ''))[:10],
-                    disabled=True
-                )
-            
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                update = st.form_submit_button(
-                    "💾 Update Profile",
-                    use_container_width=True,
-                    type="primary"
-                )
-            
-            with col_b:
-                logout = st.form_submit_button(
-                    "🚪 Logout",
-                    use_container_width=True
-                )
-            
-            if update:
-                if full_name:
-                    success, message = auth.update_profile(full_name)
-                    if success:
-                        st.success(message)
-                        st.rerun()
-                    else:
-                        st.error(message)
-            
-            if logout:
-                auth.sign_out()
-                st.success("Logged out successfully!")
-                st.rerun()
-    
-    with col2:
-        st.markdown("### Quick Stats")
-        st.metric("Resumes Processed", len(st.session_state.get('parsed_resumes', [])))
-        st.metric("Jobs Analyzed", len(st.session_state.get('ranked_candidates', [])) > 0)
-
-
-def require_auth(func):
-    """Decorator to require authentication for a page"""
-    def wrapper(*args, **kwargs):
-        auth = AdminApprovalAuth()
-        
-        if not auth.is_authenticated():
-            st.warning("⚠️ Please login to access this feature")
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            
-            with col2:
-                if st.button("🔐 Go to Login", use_container_width=True, type="primary"):
-                    st.session_state.page = 'Login'
-                    st.rerun()
-            
-            return
-        
-        return func(*args, **kwargs)
-    
-    return wrapper
 
 
 def render_auth_sidebar():
@@ -519,3 +343,25 @@ def render_auth_sidebar():
             if st.button("Login / Sign Up", use_container_width=True, type="primary"):
                 st.session_state.page = 'Login'
                 st.rerun()
+
+
+def require_auth(func):
+    """Decorator to require authentication for a page"""
+    def wrapper(*args, **kwargs):
+        auth = AdminApprovalAuth()
+        
+        if not auth.is_authenticated():
+            st.warning("⚠️ Please login to access this feature")
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col2:
+                if st.button("🔐 Go to Login", use_container_width=True, type="primary"):
+                    st.session_state.page = 'Login'
+                    st.rerun()
+            
+            return
+        
+        return func(*args, **kwargs)
+    
+    return wrapper
