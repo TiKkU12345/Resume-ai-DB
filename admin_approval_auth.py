@@ -33,7 +33,8 @@ class AdminApprovalAuth:
         
         # 🔒 WHITELIST - Only these emails can signup
         self.allowed_emails = [
-            "arunav11a31.hts21@gmail.com",  # Replace with your authorized emails
+            "arunav11a31.hts21@gmail.com", 
+            "arunav.jsr.0604@gmail.com",# Replace with your authorized emails
             "6801788@rungta.org",   # Add more if needed
         ]
         
@@ -392,3 +393,4 @@ def require_auth(func):
             return
         return func(*args, **kwargs)
     return wrapper
+
