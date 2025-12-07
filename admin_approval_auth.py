@@ -1,162 +1,176 @@
 import streamlit as st
-from database import SupabaseManager
+from supabase import create_client
 from datetime import datetime
+from app_config import get_secret
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
 class AdminApprovalAuth:
-    """Authentication manager using Supabase Auth + admin approval"""
+    """FINAL VERSION — Supabase Auth + Admin Approval + Email Whitelist"""
 
     def __init__(self):
-        self.db = SupabaseManager()
+        # Supabase connection
+        self.url = get_secret("SUPABASE_URL")
+        self.key = get_secret("SUPABASE_KEY")
+        self.client = create_client(self.url, self.key)
 
-        self.admin_email = st.secrets["email"]["admin"]
-        self.smtp_user = st.secrets["email"]["user"]
-        self.smtp_pass = st.secrets["email"]["pass"]
-        self.smtp_host = st.secrets["email"]["host"]
+        # EMAIL CONFIG
+        self.admin_email = get_secret("ADMIN_EMAIL")
+        self.smtp_user = get_secret("SENDER_EMAIL")
+        self.smtp_pass = get_secret("SENDER_PASSWORD")
+        self.smtp_host = get_secret("SMTP_SERVER")
+        self.smtp_port = int(get_secret("SMTP_PORT", 587))
 
-    # --------------- AUTH CHECK -----------------
+        # Session
+        if "user_email" not in st.session_state:
+            st.session_state.user_email = None
+            st.session_state.authenticated = False
+
+    # ---------------- AUTH CHECK ----------------
     def is_authenticated(self):
         return st.session_state.get("authenticated", False)
 
-    def is_admin(self):
-        return st.session_state.get("is_admin", False)
+    def sign_out(self):
+        st.session_state.user_email = None
+        st.session_state.authenticated = False
 
-    # --------------- SIGNUP LOGIC -----------------
-    def signup(self, full_name, email, password):
+    # ---------------- SIGNUP ----------------
+    def sign_up(self, full_name, email, password):
         """
-        1) Check authorized_emails table
-        2) If allowed -> Supabase Auth sign_up (sends confirmation email)
-        3) DO NOT create user record yet
+        ✔ Check authorized_emails table
+        ✔ Use Supabase Auth (sends confirm email automatically)
         """
 
-        # Step 1 — Check authorized email
-        allowed = self.db.client.table("authorized_emails").select("*").eq("email", email).execute()
+        # 1) Check whitelist
+        allowed = self.client.table("authorized_emails").select("*").eq("email", email.lower()).execute()
         if len(allowed.data) == 0:
-            return False, "❌ This email is not authorized"
+            return False, "⛔ Not authorized. Only approved emails can signup."
 
-        # Step 2 — Supabase AUTH signup (official email will be sent)
+        # 2) Call Supabase Auth signup (THIS sends confirmation email!)
         try:
-            res = self.db.client.auth.sign_up({"email": email, "password": password})
+            res = self.client.auth.sign_up({"email": email, "password": password})
         except Exception as e:
             return False, f"Signup failed: {e}"
 
-        # If signup error
-        if isinstance(res, dict) and res.get("error"):
+        if "error" in res and res["error"]:
             return False, res["error"]["message"]
 
-        return True, "Signup successful! Please check your email to confirm."
+        return True, "✔ Signup created — check your email to confirm."
 
-    # --------------- LOGIN LOGIC -----------------
-    def login(self, email, password):
+    # ---------------- LOGIN ----------------
+    def sign_in(self, email, password):
         """
-        On login:
-        - Supabase Auth login
-        - If user_row not exists -> create user_row and notify admin
-        - If exists but not approved -> block login
-        - Else -> login success
+        ✔ Login via Supabase Auth
+        ✔ If users row doesn't exist -> create row + notify admin
+        ✔ Block login until approved
         """
 
-        # Step 1 — Supabase Auth login
+        # 1) Supabase Auth login
         try:
-            res = self.db.client.auth.sign_in_with_password({"email": email, "password": password})
+            res = self.client.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as e:
             return False, f"Login failed: {e}"
 
-        if isinstance(res, dict) and res.get("error"):
+        if "error" in res and res["error"]:
             return False, res["error"]["message"]
 
-        # Step 2 — Check users table
-        user_row = self.db.client.table("users").select("*").eq("email", email).single().execute()
+        # 2) Check user row
+        db_user = self.client.table("users").select("*").eq("email", email).single().execute()
 
-        # If row missing → create new + notify admin
-        if not user_row.data:
+        if not db_user.data:
+            # First login after email confirmation → create row
             self._create_user_and_notify_admin(email)
-            return False, "Your email is confirmed. Admin has been notified for approval."
+            return False, "🔔 Email confirmed — waiting for admin approval."
 
-        user = user_row.data
+        user = db_user.data
 
-        # Step 3 — Not approved
+        # 3) Reject if not approved
         if not user["approved"]:
-            return False, "Your account is pending admin approval."
+            return False, "⏳ Account pending admin approval."
 
-        # Approval done → allow login
-        st.session_state.authenticated = True
+        # 4) Login success
         st.session_state.user_email = email
-        st.session_state.user_name = user.get("name", "")
-        st.session_state.is_admin = user.get("is_admin", False)
+        st.session_state.authenticated = True
+        return True, "Welcome back!"
 
-        return True, "Login successful!"
-
-    # --------------- CREATE USER + NOTIFY ADMIN --------------
+    # ---------------- CREATE USER + NOTIFY ADMIN ----------------
     def _create_user_and_notify_admin(self, email):
-        """Create user row in database and notify admin"""
+        """Insert new user & send admin approval SQL"""
+
         payload = {
             "email": email,
             "name": "",
             "approved": False,
             "approved_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
-        # Insert user
-        self.db.client.table("users").insert(payload).execute()
+        self.client.table("users").insert(payload).execute()
 
-        # Send mail to admin
         sql = f"""
-UPDATE users
+UPDATE users 
 SET approved = true,
     approved_at = NOW()
 WHERE email = '{email}';
 """
 
         body = f"""
-New user email confirmed:
-Email: {email}
+<h2>New User Email Confirmed</h2>
 
-Run the following SQL to approve:
+<p><b>Email:</b> {email}</p>
+<p><b>Time:</b> {datetime.utcnow().isoformat()}</p>
 
-{sql}
+<h3>Approve User:</h3>
+
+<pre>{sql}</pre>
 """
 
-        self._send_email(self.admin_email, "New User Confirmed - Approval Required", body)
+        self._send_email(self.admin_email, "New User Confirmed - Approval Needed", body)
 
-    # ---------------- EMAIL SENDER ------------------
+    # ---------------- EMAIL SENDER ----------------
     def _send_email(self, to, subject, body):
-        msg = MIMEMultipart()
+        msg = MIMEMultipart("alternative")
         msg["From"] = self.smtp_user
         msg["To"] = to
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(body, "html"))
 
-        s = smtplib.SMTP(self.smtp_host, 587)
+        s = smtplib.SMTP(self.smtp_host, self.smtp_port)
         s.starttls()
         s.login(self.smtp_user, self.smtp_pass)
         s.sendmail(self.smtp_user, to, msg.as_string())
         s.quit()
 
 
-# ------------ RENDER AUTH PAGE ------------
+# ---------------- AUTH PAGE UI ----------------
 def render_auth_page():
-    st.title("🔐 Login / Signup")
-
     auth = AdminApprovalAuth()
+
+    if auth.is_authenticated():
+        st.success(f"Logged in as: {st.session_state.user_email}")
+        if st.button("Logout"):
+            auth.sign_out()
+            st.rerun()
+        return
 
     tab1, tab2 = st.tabs(["Login", "Signup"])
 
+    # ---- LOGIN ----
     with tab1:
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
+
         if st.button("Login"):
-            ok, msg = auth.login(email, password)
+            ok, msg = auth.sign_in(email, password)
             if ok:
                 st.success(msg)
                 st.rerun()
             else:
                 st.error(msg)
 
+    # ---- SIGNUP ----
     with tab2:
         name = st.text_input("Full Name")
         email = st.text_input("Email")
@@ -165,9 +179,9 @@ def render_auth_page():
 
         if st.button("Signup"):
             if password != confirm:
-                st.error("Passwords do not match")
+                st.error("Passwords don't match")
             else:
-                ok, msg = auth.signup(name, email, password)
+                ok, msg = auth.sign_up(name, email, password)
                 if ok:
                     st.success(msg)
                 else:
@@ -177,8 +191,7 @@ def render_auth_page():
 def render_auth_sidebar():
     if st.session_state.get("authenticated", False):
         with st.sidebar:
-            st.markdown("---")
-            st.write("Logged in as:", st.session_state.get("user_email", ""))
+            st.write(f"Logged in as: {st.session_state.user_email}")
             if st.button("Logout"):
                 st.session_state.authenticated = False
                 st.session_state.user_email = None
