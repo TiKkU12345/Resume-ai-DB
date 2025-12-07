@@ -1,168 +1,196 @@
 import streamlit as st
-from supabase import create_client
+from supabase import create_client, Client
 from datetime import datetime
+import hashlib
+import re
 from app_config import get_secret
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 
 class AdminApprovalAuth:
-    """FINAL VERSION — Supabase Auth + Admin Approval + Email Whitelist"""
+    """Simple Authentication with Supabase + Admin approval"""
 
     def __init__(self):
-        # Supabase connection
-        self.url = get_secret("SUPABASE_URL")
-        self.key = get_secret("SUPABASE_KEY")
-        self.client = create_client(self.url, self.key)
+        self.url = get_secret("SUPABASE_URL", "")
+        self.key = get_secret("SUPABASE_KEY", "")
 
-        # EMAIL CONFIG
-        self.admin_email = get_secret("ADMIN_EMAIL")
-        self.smtp_user = get_secret("SENDER_EMAIL")
-        self.smtp_pass = get_secret("SENDER_PASSWORD")
-        self.smtp_host = get_secret("SMTP_SERVER")
-        self.smtp_port = int(get_secret("SMTP_PORT", 587))
+        if self.url and self.key:
+            self.client: Client = create_client(self.url, self.key)
+        else:
+            st.error("⚠️ Supabase not configured")
+            self.client = None
 
-        # Session
-        if "user_email" not in st.session_state:
-            st.session_state.user_email = None
-            st.session_state.authenticated = False
+        # admin email
+        self.admin_email = get_secret("ADMIN_EMAIL", "admin@example.com")
 
-    # ---------------- AUTH CHECK ----------------
-    def is_authenticated(self):
-        return st.session_state.get("authenticated", False)
+        # only these emails can register
+        self.allowed_emails = [
+            
+            "arunav11a31.hts21@gmail.com",
+            "arunav.jsr.0604@gmail.com",
+            "6801788@rungta.org"
+        ]
 
-    def sign_out(self):
-        st.session_state.user_email = None
-        st.session_state.authenticated = False
+        if 'user' not in st.session_state:
+            st.session_state.user = None
 
-    # ---------------- SIGNUP ----------------
-    def sign_up(self, full_name, email, password):
-        """
-        ✔ Check authorized_emails table
-        ✔ Use Supabase Auth (sends confirm email automatically)
-        """
+    # -------------------------- UTILITIES --------------------------
 
-        # 1) Check whitelist
-        allowed = self.client.table("authorized_emails").select("*").eq("email", email.lower()).execute()
-        if len(allowed.data) == 0:
-            return False, "⛔ Not authorized. Only approved emails can signup."
+    def _validate_email(self, email: str) -> bool:
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
 
-        # 2) Call Supabase Auth signup (THIS sends confirmation email!)
+    def _validate_password(self, password: str) -> bool:
+        return (len(password) >= 8 and 
+                any(c.isalpha() for c in password) and 
+                any(c.isdigit() for c in password))
+
+    # --------------------------- SIGN UP ---------------------------
+
+    def sign_up(self, email: str, password: str, full_name: str):
+
+        if not self.client:
+            return False, "Authentication not configured"
+
+        # whitelist check
+        if email.lower() not in [e.lower() for e in self.allowed_emails]:
+            return False, "⛔ Only authorized emails can register."
+
+        if not self._validate_email(email):
+            return False, "Invalid email format"
+
+        if not self._validate_password(password):
+            return False, "Password must be 8+ characters with letters & numbers"
+
+        # hash password
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        # check existing user
+        existing = self.client.table("users").select("email").eq("email", email).execute()
+        if existing.data:
+            return False, "Email already registered"
+
+        # insert user
+        self.client.table("users").insert({
+            "email": email.lower(),
+            "password_hash": hashed_password,
+            "full_name": full_name.strip(),
+            "is_approved": False,
+            "signup_date": datetime.now().isoformat(),
+        }).execute()
+
+        # ------------------------ SIMPLE ADMIN EMAIL ------------------------
+
+        self._send_admin_email(full_name, email)
+
+        return True, "Account created. Waiting for admin approval!"
+
+    def _send_admin_email(self, full_name, email):
+        """Simple clean email (NO HTML, NO BLOCKS)"""
+
         try:
-            res = self.client.auth.sign_up({"email": email, "password": password})
-        except Exception as e:
-            return False, f"Signup failed: {e}"
+            import smtplib
+            from email.mime.text import MIMEText
 
-        if "error" in res and res["error"]:
-            return False, res["error"]["message"]
+            sender = get_secret("SENDER_EMAIL")
+            sender_pass = get_secret("SENDER_PASSWORD")
+            smtp_server = get_secret("SMTP_SERVER")
+            smtp_port = get_secret("SMTP_PORT", 587)
 
-        return True, "✔ Signup created — check your email to confirm."
+            body = f"""
+New User Signup
 
-    # ---------------- LOGIN ----------------
-    def sign_in(self, email, password):
-        """
-        ✔ Login via Supabase Auth
-        ✔ If users row doesn't exist -> create row + notify admin
-        ✔ Block login until approved
-        """
+Name: {full_name}
+Email: {email}
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
-        # 1) Supabase Auth login
-        try:
-            res = self.client.auth.sign_in_with_password({"email": email, "password": password})
-        except Exception as e:
-            return False, f"Login failed: {e}"
+Action Required:
+Approve this user by running:
 
-        if "error" in res and res["error"]:
-            return False, res["error"]["message"]
-
-        # 2) Check user row
-        db_user = self.client.table("users").select("*").eq("email", email).single().execute()
-
-        if not db_user.data:
-            # First login after email confirmation → create row
-            self._create_user_and_notify_admin(email)
-            return False, "🔔 Email confirmed — waiting for admin approval."
-
-        user = db_user.data
-
-        # 3) Reject if not approved
-        if not user["approved"]:
-            return False, "⏳ Account pending admin approval."
-
-        # 4) Login success
-        st.session_state.user_email = email
-        st.session_state.authenticated = True
-        return True, "Welcome back!"
-
-    # ---------------- CREATE USER + NOTIFY ADMIN ----------------
-    def _create_user_and_notify_admin(self, email):
-        """Insert new user & send admin approval SQL"""
-
-        payload = {
-            "email": email,
-            "name": "",
-            "approved": False,
-            "approved_at": None,
-            "created_at": datetime.utcnow().isoformat(),
-        }
-
-        self.client.table("users").insert(payload).execute()
-
-        sql = f"""
-UPDATE users 
-SET approved = true,
-    approved_at = NOW()
+UPDATE users
+SET is_approved = true
 WHERE email = '{email}';
 """
 
-        body = f"""
-<h2>New User Email Confirmed</h2>
+            msg = MIMEText(body)
+            msg["Subject"] = f"New Signup Request: {full_name}"
+            msg["From"] = sender
+            msg["To"] = self.admin_email
 
-<p><b>Email:</b> {email}</p>
-<p><b>Time:</b> {datetime.utcnow().isoformat()}</p>
+            with smtplib.SMTP(smtp_server, int(smtp_port)) as server:
+                server.starttls()
+                server.login(sender, sender_pass)
+                server.send_message(msg)
 
-<h3>Approve User:</h3>
+        except Exception as e:
+            print("Admin email failed:", e)
 
-<pre>{sql}</pre>
-"""
+    # --------------------------- SIGN IN ---------------------------
 
-        self._send_email(self.admin_email, "New User Confirmed - Approval Needed", body)
+    def sign_in(self, email: str, password: str):
 
-    # ---------------- EMAIL SENDER ----------------
-    def _send_email(self, to, subject, body):
-        msg = MIMEMultipart("alternative")
-        msg["From"] = self.smtp_user
-        msg["To"] = to
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "html"))
+        if not self.client:
+            return False, "Authentication not configured"
 
-        s = smtplib.SMTP(self.smtp_host, self.smtp_port)
-        s.starttls()
-        s.login(self.smtp_user, self.smtp_pass)
-        s.sendmail(self.smtp_user, to, msg.as_string())
-        s.quit()
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        response = (
+            self.client.table("users")
+            .select("*")
+            .eq("email", email.lower())
+            .eq("password_hash", hashed_password)
+            .execute()
+        )
+
+        if not response.data:
+            return False, "Invalid email or password"
+
+        user = response.data[0]
+
+        if not user["is_approved"]:
+            return False, "⏳ Account pending admin approval"
+
+        st.session_state.user = user
+        return True, f"Welcome, {user['full_name']}!"
+
+    # --------------------------- LOGOUT ---------------------------
+
+    def sign_out(self):
+        st.session_state.user = None
+
+    # --------------------------- STATE -----------------------------
+
+    def is_authenticated(self):
+        return st.session_state.user is not None
+
+    def get_current_user(self):
+        return st.session_state.user
 
 
-# ---------------- AUTH PAGE UI ----------------
+# --------------------------- UI PAGES ----------------------------
+
 def render_auth_page():
+
     auth = AdminApprovalAuth()
 
     if auth.is_authenticated():
-        st.success(f"Logged in as: {st.session_state.user_email}")
-        if st.button("Logout"):
+        user = auth.get_current_user()
+        st.success(f"Logged in as {user['full_name']}")
+
+        if st.button("Logout", type="primary"):
             auth.sign_out()
             st.rerun()
+
         return
 
-    tab1, tab2 = st.tabs(["Login", "Signup"])
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
-    # ---- LOGIN ----
+    # --------------------------- LOGIN ---------------------------
     with tab1:
+        st.subheader("Login")
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
 
-        if st.button("Login"):
+        if st.button("Login", use_container_width=True):
             ok, msg = auth.sign_in(email, password)
             if ok:
                 st.success(msg)
@@ -170,18 +198,21 @@ def render_auth_page():
             else:
                 st.error(msg)
 
-    # ---- SIGNUP ----
+    # --------------------------- SIGNUP ---------------------------
     with tab2:
-        name = st.text_input("Full Name")
+        st.subheader("Create Account")
+
+        full_name = st.text_input("Full Name")
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
         confirm = st.text_input("Confirm Password", type="password")
 
-        if st.button("Signup"):
+        if st.button("Sign Up", use_container_width=True):
+
             if password != confirm:
-                st.error("Passwords don't match")
+                st.error("Passwords do not match")
             else:
-                ok, msg = auth.sign_up(name, email, password)
+                ok, msg = auth.sign_up(email, password, full_name)
                 if ok:
                     st.success(msg)
                 else:
@@ -189,10 +220,23 @@ def render_auth_page():
 
 
 def render_auth_sidebar():
-    if st.session_state.get("authenticated", False):
-        with st.sidebar:
-            st.write(f"Logged in as: {st.session_state.user_email}")
-            if st.button("Logout"):
-                st.session_state.authenticated = False
-                st.session_state.user_email = None
-                st.rerun()
+    auth = AdminApprovalAuth()
+    if auth.is_authenticated():
+        st.sidebar.markdown("---")
+        user = auth.get_current_user()
+        st.sidebar.write(f"👤 {user['full_name']}")
+
+        if st.sidebar.button("Logout"):
+            auth.sign_out()
+            st.rerun()
+
+
+def require_auth(func):
+    def wrapper(*args, **kwargs):
+        auth = AdminApprovalAuth()
+        if not auth.is_authenticated():
+            st.warning("Please login")
+            return
+        return func(*args, **kwargs)
+
+    return wrapper
