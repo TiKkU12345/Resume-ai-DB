@@ -1,3 +1,5 @@
+new app.py
+
 """
 AI Resume Shortlisting - Web Interface using Streamlit
 Beautiful, interactive dashboard for resume screening and ranking
@@ -5,42 +7,33 @@ FIXED VERSION - All errors resolved
 """
 
 import streamlit as st
-
-# Page configuration - ONLY ONCE!
-st.set_page_config(
-    page_title="AI Resume Shortlisting System",
-    page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Initialize session state
-if 'initialized' not in st.session_state:
-    st.session_state.initialized = True
-    st.session_state.user = None
-    st.session_state.parsed_resumes = []
-    st.session_state.ranked_candidates = []
-    st.session_state.current_job_id = None
-    st.session_state.page = 'Dashboard'
-
-# Other imports
 import pandas as pd
 import json
 import os
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
-from api_resume_parser import APIResumeParser as ResumeParser
+from resume_parser import ResumeParser
 from job_resume_matcher import CandidateRanker, JobDescriptionParser
 from datetime import datetime
-
-# Comment out missing modules for now
-# from email_integration import EmailManager, render_email_panel
-# from bulk_upload import render_bulk_upload_ui
-# from interview_questions import render_question_generator_ui
-
+from email_integration import EmailManager, render_email_panel
+from bulk_upload import render_bulk_upload_ui
+from interview_questions import render_question_generator_ui
 from database import SupabaseManager
-from admin_approval_auth import AdminApprovalAuth as AuthManager
+from authentication import (
+    AuthManager, 
+    render_auth_page, 
+    render_auth_sidebar, 
+    require_auth
+)
+
+# Page configuration
+st.set_page_config(
+    page_title="AI Resume Shortlisting System",
+    page_icon="📋",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Custom CSS for better styling
 st.markdown("""
@@ -87,7 +80,7 @@ st.markdown("""
 class ResumeShortlistingApp:
     """Main application class for the web interface"""
     
-    def __init__(self):
+    def _init_(self):
         self.parser = ResumeParser()
         self.ranker = CandidateRanker()
         self.job_parser = JobDescriptionParser()
@@ -97,11 +90,10 @@ class ResumeShortlistingApp:
             self.db = SupabaseManager()
             self.db_available = True
         except Exception as e:
-            st.error(f"⚠️ Database connection failed: {str(e)}")
+            st.error(f"⚠ Database connection failed: {str(e)}")
             st.info("The app will continue with limited functionality (no persistence).")
             self.db_available = False
             self.db = None
-
         
         # Initialize authentication
         try:
@@ -145,7 +137,7 @@ class ResumeShortlistingApp:
 
         # Header
         st.title("🎯 AI Resume Shortlisting System")
-        st.markdown("**Intelligent Resume Screening powered by Machine Learning**")
+        st.markdown("*Intelligent Resume Screening powered by Machine Learning*")
         st.markdown("---")
         
         # Sidebar
@@ -233,7 +225,7 @@ class ResumeShortlistingApp:
                 st.session_state.current_job_id = None
                 st.session_state.current_job_title = ""
             
-            if st.button("🗑️ Clear All Data", use_container_width=True, on_click=clear_all_data):
+            if st.button("🗑 Clear All Data", use_container_width=True, on_click=clear_all_data):
                 st.success("Data cleared!")
                 st.rerun()
     
@@ -250,7 +242,7 @@ class ResumeShortlistingApp:
     def page_send_emails(self):
         """Email sending page"""
         if not st.session_state.ranked_candidates:
-            st.warning("⚠️ No candidates to email. Please rank candidates first!")
+            st.warning("⚠ No candidates to email. Please rank candidates first!")
             if st.button("Go to Rankings"):
                 self.navigate_to('Rankings')
             return
@@ -263,12 +255,12 @@ class ResumeShortlistingApp:
         except Exception as e:
             st.error(f"Email functionality error: {str(e)}")
             st.info("""
-            **Email Setup Required:**
+            *Email Setup Required:*
             1. Enable 2-Factor Authentication on your Gmail account
             2. Generate an App Password: https://myaccount.google.com/apppasswords
             3. Update your email configuration with the 16-character app password
             
-            **Note:** Regular Gmail passwords won't work due to security restrictions.
+            *Note:* Regular Gmail passwords won't work due to security restrictions.
             """)
 
     def page_interview_questions(self):
@@ -276,10 +268,16 @@ class ResumeShortlistingApp:
         st.header("🎯 Generate Interview Questions")
         
         if not st.session_state.ranked_candidates:
-            st.warning("⚠️ No candidates available. Please rank candidates first!")
+            st.warning("⚠ No candidates available. Please rank candidates first!")
             if st.button("Go to Rankings"):
                 self.navigate_to('Rankings')
             return
+        
+        # Initialize session state for generated questions
+        if 'generated_questions' not in st.session_state:
+            st.session_state.generated_questions = None
+        if 'selected_candidate_for_questions' not in st.session_state:
+            st.session_state.selected_candidate_for_questions = None
         
         # Select candidate
         st.markdown("### Select Candidate")
@@ -293,16 +291,45 @@ class ResumeShortlistingApp:
                 if c['name'] == selected_name
             )
             
+            # Show candidate info
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Overall Score", f"{selected_candidate['overall_score']:.1f}%")
+            with col2:
+                st.metric("Experience", f"{selected_candidate.get('total_experience', 0)} years")
+            with col3:
+                st.metric("Matched Skills", len(selected_candidate.get('matched_skills', [])))
+            
+            st.markdown("---")
+            
             job_title = st.text_input(
                 "Job Title",
                 value=st.session_state.get('current_job_title', 'Software Engineer')
             )
             
-            if st.button("Generate Questions", type="primary"):
+            # Generate button
+            if st.button("🚀 Generate Interview Questions", type="primary", use_container_width=True):
                 try:
-                    render_question_generator_ui(selected_candidate, job_title)
+                    with st.spinner("Generating personalized interview questions..."):
+                        # Store in session state
+                        st.session_state.selected_candidate_for_questions = selected_candidate
+                        st.session_state.generated_questions = {
+                            'candidate': selected_candidate,
+                            'job_title': job_title
+                        }
+                        st.success("✅ Questions generated successfully!")
                 except Exception as e:
                     st.error(f"Question generation error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
+            
+            # Display questions if they exist
+            if st.session_state.generated_questions and \
+               st.session_state.generated_questions['candidate']['name'] == selected_name:
+                render_question_generator_ui(
+                    st.session_state.generated_questions['candidate'],
+                    st.session_state.generated_questions['job_title']
+                )
 
     def page_dashboard(self):
         """Analytics dashboard"""
@@ -348,7 +375,7 @@ class ResumeShortlistingApp:
                     for job in jobs[:5]:
                         col_a, col_b = st.columns([3, 1])
                         with col_a:
-                            st.write(f"**{job['title']}**")
+                            st.write(f"{job['title']}")
                         with col_b:
                             st.write(job['created_at'][:10])
                 else:
@@ -364,7 +391,7 @@ class ResumeShortlistingApp:
         st.header("📚 Ranking History")
         
         if not self.db_available:
-            st.warning("⚠️ Database not available. History feature requires database connection.")
+            st.warning("⚠ Database not available. History feature requires database connection.")
             st.info("Recent rankings are available in the Rankings tab.")
             if st.button("Go to Rankings"):
                 self.navigate_to('Rankings')
@@ -375,16 +402,16 @@ class ResumeShortlistingApp:
         except Exception as e:
             st.error(f"Failed to load job history: {str(e)}")
             st.info("""
-            **Database tables may be missing.** Please run this SQL to create them:
+            *Database tables may be missing.* Please run this SQL to create them:
             
-            ```sql
+            sql
             CREATE TABLE IF NOT EXISTS public.job_postings (
                 id SERIAL PRIMARY KEY,
                 job_title VARCHAR(255) NOT NULL,
                 job_description TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            ```
+            
             """)
             return
         
@@ -396,7 +423,7 @@ class ResumeShortlistingApp:
         
         for job in jobs:
             with st.expander(f"📋 {job['title']} ({job['created_at'][:10]})"):
-                st.markdown(f"**Job Description:**")
+                st.markdown(f"*Job Description:*")
                 st.text(job['description'][:300] + "...")
                 
                 try:
@@ -406,19 +433,19 @@ class ResumeShortlistingApp:
                     rankings = []
                 
                 if rankings:
-                    st.markdown(f"**📊 {len(rankings)} Candidates Ranked**")
+                    st.markdown(f"📊 {len(rankings)} Candidates Ranked**")
                     
                     sorted_rankings = sorted(rankings, 
                                            key=lambda x: x['overall_score'], 
                                            reverse=True)
                     
-                    st.markdown("**Top 3:**")
+                    st.markdown("*Top 3:*")
                     for i, rank in enumerate(sorted_rankings[:3], 1):
                         col1, col2 = st.columns([3, 1])
                         with col1:
                             st.write(f"{i}. Candidate #{i}")
                         with col2:
-                            st.write(f"**{rank['overall_score']:.1f}%**")
+                            st.write(f"{rank['overall_score']:.1f}%")
                     
                     def load_results(job_id, rankings_data):
                         formatted_rankings = []
@@ -452,7 +479,7 @@ class ResumeShortlistingApp:
         st.header("🔍 Search Candidates")
         
         if not self.db_available:
-            st.warning("⚠️ Database not available. Search feature requires database connection.")
+            st.warning("⚠ Database not available. Search feature requires database connection.")
             st.info("You can view uploaded resumes in the 'Upload Resumes' tab.")
             if st.button("Go to Upload Resumes"):
                 self.navigate_to('Upload Resumes')
@@ -490,16 +517,16 @@ class ResumeShortlistingApp:
                             col_a, col_b = st.columns(2)
                             
                             with col_a:
-                                st.markdown("**Contact:**")
+                                st.markdown("*Contact:*")
                                 st.write(f"📧 {data['contact'].get('email', 'N/A')}")
                                 st.write(f"📱 {data['contact'].get('phone', 'N/A')}")
                             
                             with col_b:
-                                st.markdown("**Experience:**")
-                                st.write(f"⏱️ {data.get('total_experience_years', 0)} years")
+                                st.markdown("*Experience:*")
+                                st.write(f"⏱ {data.get('total_experience_years', 0)} years")
                                 st.write(f"💼 {len(data.get('experience', []))} jobs")
                             
-                            st.markdown("**Skills:**")
+                            st.markdown("*Skills:*")
                             all_skills = []
                             for skills in data.get('skills', {}).values():
                                 all_skills.extend(skills)
@@ -529,7 +556,7 @@ class ResumeShortlistingApp:
         
         with col1:
             st.markdown("### Upload Resume Files")
-            st.markdown("Supported formats: **PDF, DOCX**")
+            st.markdown("Supported formats: *PDF, DOCX*")
             
             uploaded_files = st.file_uploader(
                 "Choose resume files",
@@ -544,12 +571,12 @@ class ResumeShortlistingApp:
         
         with col2:
             st.markdown("### Quick Stats")
-            st.info(f"**Total Resumes:** {len(st.session_state.parsed_resumes)}")
+            st.info(f"*Total Resumes:* {len(st.session_state.parsed_resumes)}")
             
             if st.session_state.parsed_resumes:
                 avg_exp = sum(r.get('total_experience_years', 0) 
                             for r in st.session_state.parsed_resumes) / len(st.session_state.parsed_resumes)
-                st.info(f"**Avg Experience:** {avg_exp:.1f} years")
+                st.info(f"*Avg Experience:* {avg_exp:.1f} years")
         
         if st.session_state.parsed_resumes:
             st.markdown("---")
@@ -608,21 +635,21 @@ class ResumeShortlistingApp:
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.markdown("**Contact Info**")
+                    st.markdown("*Contact Info*")
                     st.write(f"📧 {resume['contact'].get('email', 'N/A')}")
                     st.write(f"📱 {resume['contact'].get('phone', 'N/A')}")
                     st.write(f"💼 {resume['contact'].get('linkedin', 'N/A')}")
                 
                 with col2:
-                    st.markdown("**Experience**")
-                    st.write(f"⏱️ {resume.get('total_experience_years', 0)} years")
+                    st.markdown("*Experience*")
+                    st.write(f"⏱ {resume.get('total_experience_years', 0)} years")
                     st.write(f"💼 {len(resume.get('experience', []))} jobs")
                     st.write(f"🎓 {len(resume.get('education', []))} degrees")
                 
                 with col3:
-                    st.markdown("**Skills**")
+                    st.markdown("*Skills*")
                     total_skills = sum(len(v) for v in resume.get('skills', {}).values())
-                    st.write(f"🛠️ {total_skills} skills")
+                    st.write(f"🛠 {total_skills} skills")
                     
                     all_skills = []
                     for skills in resume.get('skills', {}).values():
@@ -633,7 +660,7 @@ class ResumeShortlistingApp:
                 def remove_resume(index):
                     st.session_state.parsed_resumes.pop(index)
                 
-                if st.button(f"🗑️ Remove", key=f"remove_{i}", on_click=remove_resume, args=(i,)):
+                if st.button(f"🗑 Remove", key=f"remove_{i}", on_click=remove_resume, args=(i,)):
                     st.rerun()
     
     def page_job_description(self):
@@ -694,8 +721,8 @@ Nice to Have:
                 try:
                     job_data = self.job_parser.parse_job_description(job_description)
                     
-                    st.info(f"**Position:** {job_data['title']}")
-                    st.info(f"**Min Experience:** {job_data['min_experience']} years")
+                    st.info(f"*Position:* {job_data['title']}")
+                    st.info(f"*Min Experience:* {job_data['min_experience']} years")
                     
                     if job_data['required_skills']:
                         with st.expander("Required Skills"):
@@ -747,7 +774,7 @@ Nice to Have:
         st.header("🏆 Candidate Rankings")
         
         if not st.session_state.ranked_candidates:
-            st.warning("⚠️ No rankings yet! Please match candidates with a job description first.")
+            st.warning("⚠ No rankings yet! Please match candidates with a job description first.")
             if st.button("Go to Job Description"):
                 self.navigate_to('Job Description')
             return
@@ -833,16 +860,16 @@ Nice to Have:
             emoji = "🟠"
             status = "MODERATE MATCH"
         
-        with st.expander(f"{emoji} **RANK #{rank}: {candidate['name']}** - {score:.1f}% ({status})", expanded=(rank <= 3)):
+        with st.expander(f"{emoji} *RANK #{rank}: {candidate['name']}* - {score:.1f}% ({status})", expanded=(rank <= 3)):
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.markdown(f"**📧 Email:** {candidate['email']}")
-                st.markdown(f"**📱 Phone:** {candidate['phone']}")
-                st.markdown(f"**⏱️ Experience:** {candidate['total_experience']} years")
+                st.markdown(f"📧 Email:** {candidate['email']}")
+                st.markdown(f"📱 Phone:** {candidate['phone']}")
+                st.markdown(f"⏱ Experience:** {candidate['total_experience']} years")
             
             with col2:
-                st.markdown("**Overall Score**")
+                st.markdown("*Overall Score*")
                 st.markdown(f"<h1 class='{score_class}'>{score:.1f}%</h1>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -876,9 +903,9 @@ Nice to Have:
                     for skill in candidate['matched_skills'][:10]:
                         st.markdown(f"✓ {skill}")
                     if len(candidate['matched_skills']) > 10:
-                        st.markdown(f"*+{len(candidate['matched_skills']) - 10} more*")
+                        st.markdown(f"+{len(candidate['matched_skills']) - 10} more")
                 else:
-                    st.markdown("*No exact skill matches*")
+                    st.markdown("No exact skill matches")
             
             with col2:
                 st.markdown("### ❌ Missing Skills")
@@ -886,9 +913,9 @@ Nice to Have:
                     for skill in candidate['missing_skills'][:10]:
                         st.markdown(f"✗ {skill}")
                     if len(candidate['missing_skills']) > 10:
-                        st.markdown(f"*+{len(candidate['missing_skills']) - 10} more*")
+                        st.markdown(f"+{len(candidate['missing_skills']) - 10} more")
                 else:
-                    st.markdown("*All required skills present*")
+                    st.markdown("All required skills present")
             
             st.markdown("---")
             st.markdown("### 💡 Assessment")
@@ -898,17 +925,17 @@ Nice to Have:
                 st.info(exp.get('summary', 'No summary available'))
                 
                 if exp.get('strengths'):
-                    st.markdown("**Strengths:**")
+                    st.markdown("*Strengths:*")
                     for strength in exp['strengths']:
                         st.markdown(f"• {strength}")
                 
                 if exp.get('weaknesses'):
-                    st.markdown("**Weaknesses:**")
+                    st.markdown("*Weaknesses:*")
                     for weakness in exp['weaknesses']:
                         st.markdown(f"• {weakness}")
                 
                 if exp.get('recommendations'):
-                    st.markdown("**Recommendation:**")
+                    st.markdown("*Recommendation:*")
                     for rec in exp['recommendations']:
                         st.success(rec)
 
@@ -1079,10 +1106,6 @@ Responsibilities:
 
 
 # Main application entry point
-if __name__ == "__main__":
+if _name_ == "_main_":
     app = ResumeShortlistingApp()
-
     app.run()
-
-
-
