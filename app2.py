@@ -40,12 +40,7 @@ from datetime import datetime
 # from interview_questions import render_question_generator_ui
 
 from database import SupabaseManager
-from admin_approval_auth import (
-    AdminApprovalAuth as AuthManager,
-    render_auth_page,
-    render_auth_sidebar,
-    require_auth
-)
+from admin_approval_auth import AdminApprovalAuth as AuthManager
 
 # Custom CSS for better styling
 st.markdown("""
@@ -1088,5 +1083,6 @@ if __name__ == "__main__":
     app = ResumeShortlistingApp()
 
     app.run()
+
 
 
