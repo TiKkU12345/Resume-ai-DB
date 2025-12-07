@@ -1,5 +1,3 @@
-new app.py
-
 """
 AI Resume Shortlisting - Web Interface using Streamlit
 Beautiful, interactive dashboard for resume screening and ranking
@@ -1109,3 +1107,4 @@ Responsibilities:
 if _name_ == "_main_":
     app = ResumeShortlistingApp()
     app.run()
+
