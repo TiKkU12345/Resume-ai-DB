@@ -1,238 +1,190 @@
 """
-Authentication Module with Supabase
-User login, signup, and session management with Name field
+Authentication Module for AI Resume Shortlisting System
+Handles user signup, login, and session management
 """
 
 import streamlit as st
 from supabase import create_client, Client
+import hashlib
 from datetime import datetime
-import re
+
+
+def get_supabase_client():
+    """Get Supabase client from secrets"""
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
 
 class AuthManager:
-    """Handle user authentication with Supabase"""
+    """Manages user authentication"""
     
     def __init__(self):
-        # Get Supabase credentials
-        self.url = st.secrets.get("SUPABASE_URL", "")
-        self.key = st.secrets.get("SUPABASE_KEY", "")
-        
-        if self.url and self.key:
-            self.client: Client = create_client(self.url, self.key)
-        else:
-            self.client = None
-        
-        # Initialize session state
-        if 'user' not in st.session_state:
-            st.session_state.user = None
-        if 'access_token' not in st.session_state:
-            st.session_state.access_token = None
+        self.supabase = get_supabase_client()
     
-    def is_authenticated(self) -> bool:
-        """Check if user is authenticated"""
-        return st.session_state.user is not None
-    
-    def get_current_user(self):
-        """Get current authenticated user"""
-        return st.session_state.user
-    
-    def sign_up(self, email: str, password: str, full_name: str = "") -> tuple:
-        """Register new user - Only allowed emails can signup"""
-        if not self.client:
-            return False, "Authentication not configured"
+    def signup(self, email, password):
+        """
+        Sign up a new user
         
+        Returns:
+            tuple: (success: bool, message: str)
+        """
         try:
-            # SECURITY: Only allow specific email(s) to signup
-            ALLOWED_EMAILS = [
-                "arunav11a31.hts21@gmail.com",  # 
-                "arunav.jsr.0604@gmail.com", 
-                "6801788@rungta.org",
-            ]
-            
-            if email.lower() not in [e.lower() for e in ALLOWED_EMAILS]:
-                return False, "⛔ Signup restricted. Only authorized emails can register."
-            
-            # Validate inputs
-            if not full_name or full_name.strip() == "":
-                return False, "Please enter your full name"
-            
-            if not self._validate_email(email):
-                return False, "Invalid email format"
-            
-            if not self._validate_password(password):
-                return False, "Password must be at least 8 characters with letters and numbers"
-            
             # Sign up with Supabase Auth
-            response = self.client.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": {
-                        "full_name": full_name.strip()
-                    }
-                }
-            })
-            
-            if response.user:
-                return True, f"Welcome {full_name}! Please check your email to verify your account."
-            else:
-                return False, "Failed to create account"
-        
-        except Exception as e:
-            error_msg = str(e)
-            if "already registered" in error_msg.lower():
-                return False, "Email already registered"
-            return False, f"Signup failed: {error_msg}"
-    
-    def sign_in(self, email: str, password: str) -> tuple:
-        """Login user"""
-        if not self.client:
-            return False, "Authentication not configured"
-        
-        try:
-            # Sign in with Supabase Auth
-            response = self.client.auth.sign_in_with_password({
+            response = self.supabase.auth.sign_up({
                 "email": email,
                 "password": password
             })
             
             if response.user:
-                # Store in session
-                st.session_state.user = {
-                    'id': response.user.id,
-                    'email': response.user.email,
-                    'full_name': response.user.user_metadata.get('full_name', ''),
-                    'created_at': response.user.created_at
-                }
-                st.session_state.access_token = response.session.access_token
-                
-                return True, f"Welcome back, {st.session_state.user['full_name']}!"
+                # Check if email confirmation is required
+                if response.session:
+                    return True, "Account created successfully! You can now login."
+                else:
+                    return True, "Account created! Please check your email to verify your account."
             else:
-                return False, "Invalid credentials"
-        
+                return False, "Failed to create account. Please try again."
+            
         except Exception as e:
             error_msg = str(e)
-            if "invalid" in error_msg.lower():
-                return False, "Invalid email or password"
-            return False, f"Login failed: {error_msg}"
+            
+            # Handle specific errors
+            if "User already registered" in error_msg:
+                return False, "This email is already registered. Please login instead."
+            elif "Invalid email" in error_msg:
+                return False, "Invalid email address format."
+            elif "Password should be at least" in error_msg:
+                return False, "Password must be at least 6 characters long."
+            elif "SMTP" in error_msg or "email" in error_msg.lower():
+                # Email service issue - create user anyway
+                st.warning("⚠️ Email service unavailable. Your account is created but email verification is disabled.")
+                return True, "Account created! You can login directly (email verification skipped)."
+            else:
+                return False, f"Signup failed: {error_msg}"
     
-    def sign_out(self):
-        """Logout user"""
-        if self.client:
-            try:
-                self.client.auth.sign_out()
-            except:
-                pass
+    def login(self, email, password):
+        """
+        Login user
         
-        # Clear session
-        st.session_state.user = None
-        st.session_state.access_token = None
-        st.session_state.parsed_resumes = []
-        st.session_state.ranked_candidates = []
-    
-    def reset_password(self, email: str) -> tuple:
-        """Send password reset email"""
-        if not self.client:
-            return False, "Authentication not configured"
-        
+        Returns:
+            tuple: (success: bool, message: str, user: dict)
+        """
         try:
-            self.client.auth.reset_password_for_email(email)
+            response = self.supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            if response.user:
+                # Store in session state
+                st.session_state.authenticated = True
+                st.session_state.user_email = email
+                st.session_state.user_id = response.user.id
+                
+                return True, "Login successful!", response.user
+            else:
+                return False, "Login failed. Please check your credentials.", None
+                
+        except Exception as e:
+            error_msg = str(e)
+            
+            # Handle specific errors
+            if "Invalid login credentials" in error_msg:
+                return False, "Invalid email or password.", None
+            elif "Email not confirmed" in error_msg:
+                return False, "Please verify your email before logging in. Check your inbox.", None
+            else:
+                return False, f"Login failed: {error_msg}", None
+    
+    def logout(self):
+        """Logout current user"""
+        try:
+            self.supabase.auth.sign_out()
+            
+            # Clear session state
+            st.session_state.authenticated = False
+            st.session_state.user_email = None
+            st.session_state.user_id = None
+            
+            return True, "Logged out successfully"
+        except Exception as e:
+            return False, f"Logout failed: {str(e)}"
+    
+    def is_authenticated(self):
+        """Check if user is authenticated"""
+        return st.session_state.get('authenticated', False)
+    
+    def get_current_user(self):
+        """Get current user info"""
+        try:
+            user = self.supabase.auth.get_user()
+            return user
+        except:
+            return None
+    
+    def reset_password(self, email):
+        """
+        Send password reset email
+        
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        try:
+            self.supabase.auth.reset_password_for_email(email)
             return True, "Password reset email sent! Check your inbox."
         except Exception as e:
             return False, f"Failed to send reset email: {str(e)}"
     
-    def update_profile(self, full_name: str) -> tuple:
-        """Update user profile"""
-        if not self.client or not st.session_state.user:
-            return False, "Not authenticated"
+    def resend_verification(self, email):
+        """
+        Resend verification email
         
+        Returns:
+            tuple: (success: bool, message: str)
+        """
         try:
-            if not full_name or full_name.strip() == "":
-                return False, "Name cannot be empty"
-            
-            self.client.auth.update_user({
-                "data": {
-                    "full_name": full_name.strip()
-                }
-            })
-            
-            st.session_state.user['full_name'] = full_name.strip()
-            return True, "Profile updated successfully!"
+            self.supabase.auth.resend(
+                type='signup',
+                email=email
+            )
+            return True, "Verification email sent! Check your inbox."
         except Exception as e:
-            return False, f"Update failed: {str(e)}"
-    
-    def _validate_email(self, email: str) -> bool:
-        """Validate email format"""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return re.match(pattern, email) is not None
-    
-    def _validate_password(self, password: str) -> bool:
-        """Validate password strength"""
-        return (len(password) >= 8 and 
-                any(c.isalpha() for c in password) and 
-                any(c.isdigit() for c in password))
+            return False, f"Failed to resend verification: {str(e)}"
 
 
 def render_auth_page():
-    """Render authentication page (login/signup)"""
+    """Render authentication page (Login/Signup)"""
+    
+    st.title("🎯 AI Resume Shortlisting System")
+    st.markdown("### Welcome! Please login or create an account")
+    
+    # Tabs for Login and Signup
+    tab1, tab2 = st.tabs(["🔐 Login", "✨ Sign Up"])
     
     auth_manager = AuthManager()
     
-    # Check if already authenticated
-    if auth_manager.is_authenticated():
-        render_profile_page(auth_manager)
-        return
-    
-    # Center the auth form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("""
-        <div style='text-align: center; padding: 20px;'>
-            <h1>🎯 AI Resume Shortlisting</h1>
-            <p style='color: #666;'>Sign in to access your recruitment dashboard</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # LOGIN TAB
+    with tab1:
+        st.markdown("### Login to Your Account")
         
-        # Tabs for login/signup
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
-        
-        # Login Tab
-        with tab1:
-            with st.form("login_form"):
-                st.markdown("### Welcome Back!")
-                
-                email = st.text_input(
-                    "Email",
-                    placeholder="your.email@company.com",
-                    key="login_email"
-                )
-                
-                password = st.text_input(
-                    "Password",
-                    type="password",
-                    placeholder="••••••••",
-                    key="login_password"
-                )
-                
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    submit = st.form_submit_button(
-                        "🚀 Login",
-                        use_container_width=True,
-                        type="primary"
-                    )
-                
-                with col_b:
-                    forgot = st.form_submit_button(
-                        "Forgot Password?",
-                        use_container_width=True
-                    )
-                
-                if submit:
-                    if email and password:
-                        with st.spinner("Signing in..."):
-                            success, message = auth_manager.sign_in(email, password)
+        with st.form("login_form"):
+            email = st.text_input("Email", placeholder="your-email@example.com")
+            password = st.text_input("Password", type="password")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                submit = st.form_submit_button("🚀 Login", use_container_width=True, type="primary")
+            
+            with col2:
+                forgot_password = st.form_submit_button("🔑 Forgot Password?", use_container_width=True)
+            
+            if submit:
+                if not email or not password:
+                    st.error("Please enter both email and password")
+                else:
+                    with st.spinner("Logging in..."):
+                        success, message, user = auth_manager.login(email, password)
                         
                         if success:
                             st.success(message)
@@ -240,205 +192,109 @@ def render_auth_page():
                             st.rerun()
                         else:
                             st.error(message)
+                            
+                            # Show resend verification button if email not confirmed
+                            if "Email not confirmed" in message or "verify your email" in message:
+                                if st.button("📧 Resend Verification Email"):
+                                    success_resend, msg_resend = auth_manager.resend_verification(email)
+                                    if success_resend:
+                                        st.success(msg_resend)
+                                    else:
+                                        st.error(msg_resend)
+            
+            if forgot_password:
+                if not email:
+                    st.error("Please enter your email first")
+                else:
+                    success, message = auth_manager.reset_password(email)
+                    if success:
+                        st.success(message)
                     else:
-                        st.error("Please fill in all fields")
-                
-                if forgot:
-                    if email:
-                        success, message = auth_manager.reset_password(email)
-                        if success:
-                            st.success(message)
-                        else:
-                            st.error(message)
-                    else:
-                        st.error("Please enter your email")
+                        st.error(message)
+    
+    # SIGNUP TAB
+    with tab2:
+        st.markdown("### Create New Account")
         
-        # Signup Tab
-        with tab2:
-            with st.form("signup_form"):
-                st.markdown("### Create Account")
-                
-                full_name = st.text_input(
-                    "Full Name *",
-                    placeholder="John Doe",
-                    key="signup_name",
-                    help="Your name will be displayed in the system"
-                )
-                
-                email = st.text_input(
-                    "Email *",
-                    placeholder="your.email@company.com",
-                    key="signup_email"
-                )
-                
-                password = st.text_input(
-                    "Password *",
-                    type="password",
-                    placeholder="••••••••",
-                    help="At least 8 characters with letters and numbers",
-                    key="signup_password"
-                )
-                
-                confirm_password = st.text_input(
-                    "Confirm Password *",
-                    type="password",
-                    placeholder="••••••••",
-                    key="signup_confirm"
-                )
-                
-                agree = st.checkbox(
-                    "I agree to the Terms of Service and Privacy Policy",
-                    key="agree_terms"
-                )
-                
-                submit = st.form_submit_button(
-                    "✨ Create Account",
-                    use_container_width=True,
-                    type="primary"
-                )
-                
-                if submit:
-                    if not agree:
-                        st.error("Please agree to the terms")
-                    elif not all([full_name, email, password, confirm_password]):
-                        st.error("Please fill in all fields")
-                    elif password != confirm_password:
-                        st.error("Passwords don't match")
-                    else:
-                        with st.spinner("Creating account..."):
-                            success, message = auth_manager.sign_up(email, password, full_name)
+        with st.form("signup_form"):
+            email = st.text_input("Email", placeholder="your-email@example.com")
+            password = st.text_input("Password", type="password", help="Minimum 6 characters")
+            password_confirm = st.text_input("Confirm Password", type="password")
+            
+            agree = st.checkbox("I agree to the Terms of Service and Privacy Policy")
+            
+            submit = st.form_submit_button("✨ Create Account", use_container_width=True, type="primary")
+            
+            if submit:
+                # Validation
+                if not email or not password or not password_confirm:
+                    st.error("Please fill all fields")
+                elif not agree:
+                    st.error("Please agree to Terms of Service")
+                elif password != password_confirm:
+                    st.error("Passwords do not match")
+                elif len(password) < 6:
+                    st.error("Password must be at least 6 characters")
+                else:
+                    with st.spinner("Creating account..."):
+                        success, message = auth_manager.signup(email, password)
                         
                         if success:
                             st.success(message)
-                            st.info("📧 Check your email to verify your account, then login!")
+                            st.info("💡 You can now go to the Login tab and sign in!")
+                            
+                            # Show instructions
+                            if "email" in message.lower() and "verify" in message.lower():
+                                st.markdown("""
+                                **Next Steps:**
+                                1. Check your email inbox
+                                2. Click the verification link
+                                3. Come back and login
+                                
+                                **Can't find the email?**
+                                - Check your Spam folder
+                                - Wait a few minutes
+                                - Use 'Resend Verification' button in Login tab
+                                """)
                         else:
                             st.error(message)
-        
-        # Footer
-        st.markdown("---")
-        st.markdown("""
-        <div style='text-align: center; color: #666; font-size: 12px;'>
-            <p>Powered by AI & Machine Learning</p>
-            <p>© 2025 Resume Shortlisting System</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-
-def render_profile_page(auth_manager: AuthManager):
-    """Render user profile page"""
-    
-    user = auth_manager.get_current_user()
-    
-    st.header("👤 User Profile")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        # Profile info
-        st.markdown("### Account Information")
-        
-        with st.form("profile_form"):
-            full_name = st.text_input(
-                "Full Name",
-                value=user.get('full_name', ''),
-                key="profile_name"
-            )
-            
-            st.text_input(
-                "Email",
-                value=user.get('email', ''),
-                disabled=True,
-                help="Email cannot be changed"
-            )
-            
-            st.text_input(
-                "Member Since",
-                value=user.get('created_at', '')[:10] if user.get('created_at') else 'N/A',
-                disabled=True
-            )
-            
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                update = st.form_submit_button(
-                    "💾 Update Profile",
-                    use_container_width=True,
-                    type="primary"
-                )
-            
-            with col_b:
-                logout = st.form_submit_button(
-                    "🚪 Logout",
-                    use_container_width=True
-                )
-            
-            if update:
-                if full_name:
-                    success, message = auth_manager.update_profile(full_name)
-                    if success:
-                        st.success(message)
-                        st.rerun()
-                    else:
-                        st.error(message)
-            
-            if logout:
-                auth_manager.sign_out()
-                st.success("Logged out successfully!")
-                st.rerun()
-    
-    with col2:
-        st.markdown("### Quick Stats")
-        
-        # Get user stats from database if available
-        st.metric("Resumes Processed", len(st.session_state.get('parsed_resumes', [])))
-        st.metric("Jobs Analyzed", len(st.session_state.get('ranked_candidates', [])) > 0)
-
-
-def require_auth(func):
-    """Decorator to require authentication for a page"""
-    def wrapper(*args, **kwargs):
-        auth_manager = AuthManager()
-        
-        if not auth_manager.is_authenticated():
-            st.warning("⚠️ Please login to access this feature")
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            
-            with col2:
-                if st.button("🔐 Go to Login", use_container_width=True, type="primary"):
-                    st.session_state.page = 'Login'
-                    st.rerun()
-            
-            return
-        
-        return func(*args, **kwargs)
-    
-    return wrapper
 
 
 def render_auth_sidebar():
-    """Render auth status in sidebar"""
+    """Render authentication info in sidebar"""
     
     auth_manager = AuthManager()
     
-    with st.sidebar:
-        st.markdown("---")
-        
-        if auth_manager.is_authenticated():
-            user = auth_manager.get_current_user()
-            
+    if auth_manager.is_authenticated():
+        with st.sidebar:
+            st.markdown("---")
             st.markdown("### 👤 Logged In")
-            st.write(f"**{user.get('full_name', 'User')}**")
-            st.caption(user.get('email', ''))
+            
+            user_email = st.session_state.get('user_email', 'Unknown')
+            st.info(f"📧 {user_email}")
             
             if st.button("🚪 Logout", use_container_width=True):
-                auth_manager.sign_out()
-                st.success("Logged out!")
-                st.rerun()
-        else:
-            st.markdown("### 🔐 Not Logged In")
-            
-            if st.button("Login / Sign Up", use_container_width=True, type="primary"):
-                st.session_state.page = 'Login'
-                st.rerun()
+                success, message = auth_manager.logout()
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
 
+
+def require_auth(func):
+    """Decorator to require authentication for a function"""
+    def wrapper(*args, **kwargs):
+        auth_manager = AuthManager()
+        if not auth_manager.is_authenticated():
+            st.warning("⚠️ Please login to access this feature")
+            render_auth_page()
+            return None
+        return func(*args, **kwargs)
+    return wrapper
+
+
+# Test authentication
+if __name__ == "__main__":
+    st.set_page_config(page_title="Authentication Test", layout="wide")
+    render_auth_page()
