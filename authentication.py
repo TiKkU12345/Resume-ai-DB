@@ -155,8 +155,52 @@ class AuthManager:
 def render_auth_page():
     """Render authentication page (Login/Signup)"""
     
-    st.title("🎯 AI Resume Shortlisting System")
-    st.markdown("### Welcome! Please login or create an account")
+    # Add custom CSS for centering and styling
+    st.markdown("""
+        <style>
+        /* Center the main content */
+        .main .block-container {
+            max-width: 600px;
+            padding-top: 5rem;
+            padding-bottom: 5rem;
+            margin: 0 auto;
+        }
+        
+        /* Style the tabs */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2rem;
+            justify-content: center;
+        }
+        
+        /* Copyright footer */
+        .copyright-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            color: #888;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .copyright-footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .copyright-footer a:hover {
+            color: #764ba2;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Center aligned title
+    st.markdown("<h1 style='text-align: center;'>🎯 AI Resume Shortlisting System</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #888;'>Welcome! Please login or create an account</h3>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # Tabs for Login and Signup
     tab1, tab2 = st.tabs(["🔐 Login", "✨ Sign Up"])
@@ -258,6 +302,19 @@ def render_auth_page():
                                 """)
                         else:
                             st.error(message)
+    
+    # Copyright Footer
+    from datetime import datetime
+    current_year = datetime.now().year
+    
+    st.markdown(f"""
+        <div class="copyright-footer">
+            © {current_year} AI Resume Shortlisting System. All rights reserved. 
+            | Built with ❤️ using Streamlit 
+            | <a href="https://github.com" target="_blank">GitHub</a> 
+            | <a href="#" target="_blank">Privacy Policy</a>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 def render_auth_sidebar():
