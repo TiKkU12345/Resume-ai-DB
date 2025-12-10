@@ -7,6 +7,7 @@ import streamlit as st
 from supabase import create_client, Client
 import hashlib
 from datetime import datetime
+from datetime import datetime
 
 
 def get_supabase_client():
@@ -303,15 +304,14 @@ def render_auth_page():
                         else:
                             st.error(message)
     
-    # Copyright Footer
-    from datetime import datetime
+
     current_year = datetime.now().year
     
     st.markdown(f"""
         <div class="copyright-footer">
             © {current_year} AI Resume Shortlisting System. All rights reserved. 
             | Built with ❤️ using Streamlit 
-            | <a href="https://github.com" target="_blank">GitHub</a> 
+            | <a href="https://github.com/TiKkU12345/Resume-ai-DB">GitHub</a> 
             | <a href="#" target="_blank">Privacy Policy</a>
         </div>
     """, unsafe_allow_html=True)
