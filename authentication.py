@@ -7,7 +7,6 @@ import streamlit as st
 from supabase import create_client, Client
 import hashlib
 from datetime import datetime
-from datetime import datetime
 
 
 def get_supabase_client():
@@ -161,16 +160,32 @@ def render_auth_page():
         <style>
         /* Center the main content */
         .main .block-container {
-            max-width: 600px;
-            padding-top: 5rem;
+            max-width: 800px;
+            padding-top: 3rem;
             padding-bottom: 5rem;
             margin: 0 auto;
+        }
+        
+        /* Style the header */
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
         }
         
         /* Style the tabs */
         .stTabs [data-baseweb="tab-list"] {
             gap: 2rem;
             justify-content: center;
+            margin-bottom: 2rem;
+        }
+        
+        /* Style forms */
+        .stForm {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         /* Copyright footer */
@@ -180,42 +195,43 @@ def render_auth_page():
             left: 0;
             right: 0;
             text-align: center;
-            padding: 1rem;
-            background: rgba(0, 0, 0, 0.3);
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            color: #666;
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .copyright-footer .line1 {
             color: #888;
-            font-size: 0.9rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.3rem;
         }
         
-        .copyright-footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-        
-        .copyright-footer a:hover {
-            color: #764ba2;
+        .copyright-footer .line2 {
+            color: #666;
         }
         </style>
     """, unsafe_allow_html=True)
     
-    # Center aligned title
-    st.markdown("<h1 style='text-align: center;'>🎯 AI Resume Shortlisting System</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #888;'>Welcome! Please login or create an account</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Header
+    st.markdown("<h1>🎯 AI Resume Shortlisting</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888; margin-bottom: 2rem;'>Sign in to access your recruitment dashboard</p>", unsafe_allow_html=True)
     
     # Tabs for Login and Signup
-    tab1, tab2 = st.tabs(["🔐 Login", "✨ Sign Up"])
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
     
     auth_manager = AuthManager()
     
     # LOGIN TAB
     with tab1:
-        st.markdown("### Login to Your Account")
-        
         with st.form("login_form"):
-            email = st.text_input("Email", placeholder="your-email@example.com")
-            password = st.text_input("Password", type="password")
+            st.markdown("### Login to Your Account")
+            st.markdown("")
             
+            email = st.text_input("Email", placeholder="your-email@company.com")
+            password = st.text_input("Password", type="password", placeholder="••••••••")
+            
+            st.markdown("")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -238,7 +254,6 @@ def render_auth_page():
                         else:
                             st.error(message)
                             
-                            # Show resend verification button if email not confirmed
                             if "Email not confirmed" in message or "verify your email" in message:
                                 if st.button("📧 Resend Verification Email"):
                                     success_resend, msg_resend = auth_manager.resend_verification(email)
@@ -259,20 +274,24 @@ def render_auth_page():
     
     # SIGNUP TAB
     with tab2:
-        st.markdown("### Create New Account")
-        
         with st.form("signup_form"):
-            email = st.text_input("Email", placeholder="your-email@example.com")
-            password = st.text_input("Password", type="password", help="Minimum 6 characters")
-            password_confirm = st.text_input("Confirm Password", type="password")
+            st.markdown("### Create Account")
+            st.markdown("")
             
+            full_name = st.text_input("Full Name", placeholder="John Doe")
+            email = st.text_input("Email", placeholder="your-email@company.com")
+            password = st.text_input("Password", type="password", placeholder="••••••••", help="Minimum 6 characters")
+            password_confirm = st.text_input("Confirm Password", type="password", placeholder="••••••••")
+            
+            st.markdown("")
             agree = st.checkbox("I agree to the Terms of Service and Privacy Policy")
             
+            st.markdown("")
             submit = st.form_submit_button("✨ Create Account", use_container_width=True, type="primary")
             
             if submit:
                 # Validation
-                if not email or not password or not password_confirm:
+                if not full_name or not email or not password or not password_confirm:
                     st.error("Please fill all fields")
                 elif not agree:
                     st.error("Please agree to Terms of Service")
@@ -285,34 +304,22 @@ def render_auth_page():
                         success, message = auth_manager.signup(email, password)
                         
                         if success:
-                            st.success(message)
+                            st.success(f"✅ Welcome {full_name}! {message}")
                             st.info("💡 You can now go to the Login tab and sign in!")
                             
-                            # Show instructions
                             if "email" in message.lower() and "verify" in message.lower():
-                                st.markdown("""
-                                **Next Steps:**
-                                1. Check your email inbox
-                                2. Click the verification link
-                                3. Come back and login
-                                
-                                **Can't find the email?**
-                                - Check your Spam folder
-                                - Wait a few minutes
-                                - Use 'Resend Verification' button in Login tab
-                                """)
+                                st.info("📧 Check your email to verify your account")
                         else:
                             st.error(message)
     
-
+    # Copyright Footer
+    from datetime import datetime
     current_year = datetime.now().year
     
     st.markdown(f"""
         <div class="copyright-footer">
-            © {current_year} AI Resume Shortlisting System. All rights reserved. 
-            | Built with ❤️ using Streamlit 
-            | <a href="https://github.com/TiKkU12345/Resume-ai-DB">GitHub</a> 
-            | <a href="#" target="_blank">Privacy Policy</a>
+            <div class="line1">Powered by AI & Machine Learning</div>
+            <div class="line2">© {current_year} Resume Shortlisting System</div>
         </div>
     """, unsafe_allow_html=True)
 
