@@ -202,14 +202,14 @@ def render_auth_page():
         #     border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
         
-        .copyright-footer .line1 {
-            color: #888;
-            margin-bottom: 0.3rem;
-        }
+        # .copyright-footer .line1 {
+        #     color: #888;
+        #     margin-bottom: 0.3rem;
+        # }
         
-        .copyright-footer .line2 {
-            color: #666;
-        }
+        # .copyright-footer .line2 {
+        #     color: #666;
+        # }
         </style>
     """, unsafe_allow_html=True)
     
@@ -362,3 +362,4 @@ def require_auth(func):
 if __name__ == "__main__":
     st.set_page_config(page_title="Authentication Test", layout="wide")
     render_auth_page()
+
