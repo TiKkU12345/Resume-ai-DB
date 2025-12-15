@@ -190,26 +190,20 @@ def render_auth_page():
         
         /* Copyright footer */
         .copyright-footer {
-        #     position: fixed;
-        #     bottom: 0;
-        #     left: 0;
-        #     right: 0;
+            position: fixed;
+    
             text-align: center;
-        #     padding: 1.5rem;
-        #     # background: rgba(0, 0, 0, 0.5);
-        #     # color: #666;
-        #     font-size: 0.85rem;
-        #     border-top: 1px solid rgba(255, 255, 255, 0.05);
+        
         }
         
-        # .copyright-footer .line1 {
-        #     color: #888;
-        #     margin-bottom: 0.3rem;
-        # }
+        .copyright-footer .line1 {
+            color: #888;
+            margin-bottom: 0.3rem;
+        }
         
-        # .copyright-footer .line2 {
-        #     color: #666;
-        # }
+        .copyright-footer .line2 {
+            color: #666;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -362,4 +356,5 @@ def require_auth(func):
 if __name__ == "__main__":
     st.set_page_config(page_title="Authentication Test", layout="wide")
     render_auth_page()
+
 
