@@ -362,4 +362,3 @@ def require_auth(func):
 if __name__ == "__main__":
     st.set_page_config(page_title="Authentication Test", layout="wide")
     render_auth_page()
-
