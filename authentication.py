@@ -188,12 +188,16 @@ def render_auth_page():
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        /* Copyright footer */
+         /* Copyright footer */
         .copyright-footer {
             position: fixed;
-    
+        #     bottom: 0;
+        #     left: 0;
+        #     right: 0;
             text-align: center;
-        
+        #     padding: 1.5rem;
+        #     # color: #666;
+        #     font-size: 0.85rem;    
         }
         
         .copyright-footer .line1 {
@@ -356,5 +360,6 @@ def require_auth(func):
 if __name__ == "__main__":
     st.set_page_config(page_title="Authentication Test", layout="wide")
     render_auth_page()
+
 
 
