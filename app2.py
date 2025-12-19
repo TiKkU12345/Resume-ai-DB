@@ -251,7 +251,7 @@ class ResumeShortlistingApp:
                 st.success("Data cleared!")
                 st.rerun()
     
-    # ==================== NEW PAGES ====================
+    # NEW PAGES 
     
     def page_bulk_upload(self):
         """Bulk resume upload page"""
@@ -568,7 +568,7 @@ class ResumeShortlistingApp:
         elif search_button and not search_skill:
             st.error("Please enter a skill to search!")
     
-    # ==================== EXISTING PAGES ====================
+    #  EXISTING PAGES 
     
     def page_upload_resumes(self):
         """Resume upload and parsing page"""
