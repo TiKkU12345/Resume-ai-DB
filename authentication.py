@@ -10,36 +10,17 @@ from datetime import datetime
 
 
 def get_supabase_client():
-    """Get Supabase client from secrets with error handling"""
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error(f"Failed to connect to Supabase: {str(e)}")
-        return None
+    """Get Supabase client from secrets"""
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
 
 class AuthManager:
     """Manages user authentication"""
     
     def __init__(self):
-        # Lazy initialization - don't connect until needed
-        self._supabase = None
-        self._connection_error = None
-    
-    @property
-    def supabase(self):
-        """Lazy load Supabase client"""
-        if self._supabase is None and self._connection_error is None:
-            try:
-                self._supabase = get_supabase_client()
-                if self._supabase is None:
-                    self._connection_error = "Failed to initialize Supabase"
-            except Exception as e:
-                self._connection_error = str(e)
-        
-        return self._supabase
+        self.supabase = get_supabase_client()
     
     def signup(self, email, password):
         """
@@ -48,9 +29,6 @@ class AuthManager:
         Returns:
             tuple: (success: bool, message: str)
         """
-        if not self.supabase:
-            return False, "Database connection unavailable"
-        
         try:
             # Sign up with Supabase Auth
             response = self.supabase.auth.sign_up({
@@ -91,9 +69,6 @@ class AuthManager:
         Returns:
             tuple: (success: bool, message: str, user: dict)
         """
-        if not self.supabase:
-            return False, "Database connection unavailable", None
-        
         try:
             response = self.supabase.auth.sign_in_with_password({
                 "email": email,
@@ -124,8 +99,7 @@ class AuthManager:
     def logout(self):
         """Logout current user"""
         try:
-            if self.supabase:
-                self.supabase.auth.sign_out()
+            self.supabase.auth.sign_out()
             
             # Clear session state
             st.session_state.authenticated = False
@@ -134,22 +108,14 @@ class AuthManager:
             
             return True, "Logged out successfully"
         except Exception as e:
-            # Even if Supabase fails, clear local session
-            st.session_state.authenticated = False
-            st.session_state.user_email = None
-            st.session_state.user_id = None
-            return True, "Logged out successfully"
+            return False, f"Logout failed: {str(e)}"
     
     def is_authenticated(self):
-        """Check if user is authenticated - FAST CHECK"""
-        # This should be instant - just check session state
+        """Check if user is authenticated"""
         return st.session_state.get('authenticated', False)
     
     def get_current_user(self):
         """Get current user info"""
-        if not self.supabase:
-            return None
-        
         try:
             user = self.supabase.auth.get_user()
             return user
@@ -163,9 +129,6 @@ class AuthManager:
         Returns:
             tuple: (success: bool, message: str)
         """
-        if not self.supabase:
-            return False, "Database connection unavailable"
-        
         try:
             self.supabase.auth.reset_password_for_email(email)
             return True, "Password reset email sent! Check your inbox."
@@ -179,9 +142,6 @@ class AuthManager:
         Returns:
             tuple: (success: bool, message: str)
         """
-        if not self.supabase:
-            return False, "Database connection unavailable"
-        
         try:
             self.supabase.auth.resend(
                 type='signup',
@@ -230,9 +190,16 @@ def render_auth_page():
         
         /* Copyright footer */
         .copyright-footer {
+        #     position: fixed;
+        #     bottom: 0;
+        #     left: 0;
+        #     right: 0;
             text-align: center;
-            padding: 2rem 0;
-            margin-top: 3rem;
+        #     padding: 1.5rem;
+        #     # background: rgba(0, 0, 0, 0.5);
+        #     # color: #666;
+        #     font-size: 0.85rem;
+        #     border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
         
         .copyright-footer .line1 {
@@ -253,7 +220,6 @@ def render_auth_page():
     # Tabs for Login and Signup
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
     
-    # Initialize auth manager (lazy loading won't block)
     auth_manager = AuthManager()
     
     # LOGIN TAB
@@ -347,12 +313,13 @@ def render_auth_page():
                             st.error(message)
     
     # Copyright Footer
+    from datetime import datetime
     current_year = datetime.now().year
     
     st.markdown(f"""
         <div class="copyright-footer">
             <div class="line1">Powered by AI & Machine Learning</div>
-            <div class="line2">© {current_year} Resume Shortlisting System. All Rights Reserved.</div>
+            <div class="line2">© {current_year} Resume Shortlisting System</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -360,8 +327,9 @@ def render_auth_page():
 def render_auth_sidebar():
     """Render authentication info in sidebar"""
     
-    # Quick check - no Supabase connection needed
-    if st.session_state.get('authenticated', False):
+    auth_manager = AuthManager()
+    
+    if auth_manager.is_authenticated():
         with st.sidebar:
             st.markdown("---")
             st.markdown("### 👤 Logged In")
@@ -370,7 +338,6 @@ def render_auth_sidebar():
             st.info(f"📧 {user_email}")
             
             if st.button("🚪 Logout", use_container_width=True):
-                auth_manager = AuthManager()
                 success, message = auth_manager.logout()
                 if success:
                     st.success(message)
@@ -382,8 +349,8 @@ def render_auth_sidebar():
 def require_auth(func):
     """Decorator to require authentication for a function"""
     def wrapper(*args, **kwargs):
-        # Fast check - no database connection
-        if not st.session_state.get('authenticated', False):
+        auth_manager = AuthManager()
+        if not auth_manager.is_authenticated():
             st.warning("⚠️ Please login to access this feature")
             render_auth_page()
             return None
