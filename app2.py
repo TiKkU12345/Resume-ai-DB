@@ -8,8 +8,6 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import plotly.express as px
-import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
@@ -20,8 +18,6 @@ from email_integration import EmailManager, render_email_panel
 from bulk_upload import render_bulk_upload_ui
 from interview_questions import render_question_generator_ui
 from database import SupabaseManager
-from agent_brain import AgentBrain, AgentDecision, ConfidenceLevel
-from generate_question import QuestionGenerator, AnswerEvaluator
 
 # Try to import authentication (optional)
 try:
@@ -96,17 +92,6 @@ class ResumeShortlistingApp:
         self.parser = ResumeParser()
         self.ranker = CandidateRanker()
         self.job_parser = JobDescriptionParser()
-
-        # Initialize agent components
-        try:
-            self.question_generator = QuestionGenerator()
-            self.answer_evaluator = AnswerEvaluator()
-            self.agent_available = True
-        except Exception as e:
-            st.warning(f"⚠️ Agent features not available: {str(e)}")
-            self.question_generator = None
-            self.answer_evaluator = None
-            self.agent_available = False
         
         # Initialize database with error handling
         try:
@@ -141,11 +126,7 @@ class ResumeShortlistingApp:
             'current_job_title': "",
             'page': 'Dashboard',
             'authenticated': False,
-            'user_email': None,
-            'qa_questions': {},  
-            'candidate_questions': {},  
-            'generated_questions': None,  
-            'selected_candidate_for_questions': None  
+            'user_email': None
         }
         
         for key, value in defaults.items():
@@ -159,11 +140,7 @@ class ResumeShortlistingApp:
     
     def run(self):
         """Main application runner"""
-
-        # CRITICAL: Initialize session state FIRST
-        if 'parsed_resumes' not in st.session_state:
-            self._initialize_session_state()
-
+        
         # Check authentication first (if available) - with error handling
         try:
             if self.auth_manager and hasattr(self.auth_manager, 'is_authenticated'):
@@ -200,7 +177,6 @@ class ResumeShortlistingApp:
             'Bulk Upload': self.page_bulk_upload,
             'Job Description': self.page_job_description,
             'Rankings': self.page_rankings,
-            'Agent Q&A': self.page_agent_qa,
             'Send Emails': self.page_send_emails,
             'Interview Questions': self.page_interview_questions,
             'Analytics': self.page_analytics,
@@ -209,14 +185,7 @@ class ResumeShortlistingApp:
         }
         
         page_method = page_methods.get(page, self.page_dashboard)
-
-        try:
-            page_method()
-        except Exception as e:
-            st.error(f"Error loading page: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
-            
+        page_method()
     
     def render_sidebar(self):
         """Render sidebar navigation"""
@@ -238,7 +207,6 @@ class ResumeShortlistingApp:
                 "Bulk Upload",
                 "Job Description",
                 "Rankings",
-                "Agent Q&A",
                 "Send Emails",
                 "Interview Questions",
                 "Analytics",
@@ -418,31 +386,6 @@ class ResumeShortlistingApp:
         with col3:
             st.metric("🎯 Rankings Done", stats.get('total_rankings', 0))
         
-        # Add recruiter feedback stats
-        if self.db_available:
-            try:
-                feedback_stats = self.db.get_recruiter_feedback_stats()
-                
-                if feedback_stats['total'] > 0:
-                    st.markdown("---")
-                    st.markdown("### 👨‍💼 Recruiter Decisions")
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Total Decisions", feedback_stats['total'])
-                    
-                    with col2:
-                        st.metric("✅ Hired", feedback_stats['hired'])
-                    
-                    with col3:
-                        st.metric("📞 Interviews", feedback_stats['interview'])
-                    
-                    with col4:
-                        st.metric("❌ Rejected", feedback_stats['rejected'])
-            except:
-                pass
-    
         st.markdown("---")
         st.markdown("### 📋 Recent Jobs")
         
@@ -816,667 +759,90 @@ Nice to Have:
                     st.warning(f"Job parsing error: {str(e)}")
     
     def match_candidates(self, job_description):
-      """Match candidates with job description using AGENT logic"""
-      with st.spinner("🤖 AI Agent is analyzing candidates..."):
-          try:
-              # Import AgentRanker
-              from job_resume_matcher import AgentRanker
-              
-              # Use agent-enhanced ranking
-              agent_ranker = AgentRanker()
-              ranked = agent_ranker.rank_candidates_with_agent(
-                  st.session_state.parsed_resumes,
-                  job_description
-              )
-              st.session_state.ranked_candidates = ranked
-              
-              job_data = self.job_parser.parse_job_description(job_description)
-              st.session_state.current_job_title = job_data['title']
-              
-              # Save to database if available
-              if self.db_available:
-                  try:
-                      job_id = self.db.save_job_posting(
-                          job_data['title'],
-                          job_description,
-                          job_data
-                      )
-                      st.session_state.current_job_id = job_id
-                      
-                      # Save rankings with agent data
-                      self.db.save_ranking(job_id, ranked)
-                  except Exception as e:
-                      st.warning(f"Could not save to database: {str(e)}")
-              
-              # Show summary
-              shortlisted = sum(1 for c in ranked if c['agent_decision'] == 'auto_shortlist')
-              questions_needed = sum(1 for c in ranked if c['agent_decision'] == 'ask_questions')
-              rejected = sum(1 for c in ranked if c['agent_decision'] == 'auto_reject')
-              
-              st.success(f"""
-              ✅ Agent Analysis Complete!
-              
-              📊 **Results:**
-              - 🟢 Auto-Shortlisted: {shortlisted}
-              - 🟡 Questions Needed: {questions_needed}
-              - 🔴 Auto-Rejected: {rejected}
-              
-              Go to Rankings tab to view detailed results.
-              """)
-              
-          except Exception as e:
-              st.error(f"Matching failed: {str(e)}")
-              import traceback
-              st.code(traceback.format_exc())
+        """Match candidates with job description"""
+        with st.spinner("🤖 AI is analyzing candidates..."):
+            try:
+                ranked = self.ranker.rank_candidates(
+                    st.session_state.parsed_resumes,
+                    job_description
+                )
+                st.session_state.ranked_candidates = ranked
+                
+                job_data = self.job_parser.parse_job_description(job_description)
+                st.session_state.current_job_title = job_data['title']
+                
+                # Save to database if available
+                if self.db_available:
+                    try:
+                        job_id = self.db.save_job_posting(
+                            job_data['title'],
+                            job_description,
+                            job_data
+                        )
+                        st.session_state.current_job_id = job_id
+                        
+                        self.db.save_ranking(job_id, ranked)
+                    except Exception as e:
+                        st.warning(f"Could not save to database: {str(e)}")
+                
+                st.success(f"✅ Ranked {len(ranked)} candidates! Go to Rankings tab to view results.")
+                
+            except Exception as e:
+                st.error(f"Matching failed: {str(e)}")
+                st.info("Please check your ranking configuration and try again.")
     
     def page_rankings(self):
-        """Display ranked candidates with AGENT decisions"""
-        st.header("🏆 AI Agent Rankings")
-
+        """Display ranked candidates"""
+        st.header("🏆 Candidate Rankings")
+        
         if not st.session_state.ranked_candidates:
             st.warning("⚠️ No rankings yet! Please match candidates with a job description first.")
             if st.button("Go to Job Description"):
                 self.navigate_to('Job Description')
             return
-
-        # Agent summary metrics
-        candidates = st.session_state.ranked_candidates
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        shortlisted = [c for c in candidates if c.get('agent_decision') == 'auto_shortlist']
-        questions_needed = [c for c in candidates if c.get('agent_decision') == 'ask_questions']
-        rejected = [c for c in candidates if c.get('agent_decision') == 'auto_reject']
-
-        with col1:
-            st.metric("Total Candidates", len(candidates))
-
-        with col2:
-            st.metric("🟢 Auto-Shortlisted", len(shortlisted))
-
-        with col3:
-            st.metric("🟡 Questions Needed", len(questions_needed))
-
-        with col4:
-            st.metric("🔴 Auto-Rejected", len(rejected))
-
+        
+        self.display_ranking_metrics()
+        
         st.markdown("---")
-
-        # Filters
+        
         col1, col2, col3 = st.columns(3)
-
+        
         with col1:
-            filter_decision = st.selectbox(
-                "Filter by Decision",
-                ["All", "Auto-Shortlisted", "Questions Needed", "Auto-Rejected"]
-            )
-
+            min_score = st.slider("Minimum Score", 0, 100, 0, 5)
+        
         with col2:
-            min_confidence = st.slider("Minimum Confidence", 0.0, 1.0, 0.0, 0.1)
-
+            sort_by = st.selectbox("Sort By", ["Overall Score", "Skills Score", "Experience Score"])
+        
         with col3:
-            sort_by = st.selectbox("Sort By", ["Overall Score", "Confidence", "Skills Score"])
-
-        # Apply filters
-        filtered = candidates.copy()
-
-        if filter_decision == "Auto-Shortlisted":
-            filtered = shortlisted
-        elif filter_decision == "Questions Needed":
-            filtered = questions_needed
-        elif filter_decision == "Auto-Rejected":
-            filtered = rejected
-
-        filtered = [c for c in filtered if c.get('confidence_score', 0) >= min_confidence]
-
-        # Sort
-        if sort_by == "Overall Score":
-            filtered.sort(key=lambda x: x['overall_score'], reverse=True)
-        elif sort_by == "Confidence":
-            filtered.sort(key=lambda x: x.get('confidence_score', 0), reverse=True)
-        elif sort_by == "Skills Score":
+            max_candidates = len(st.session_state.ranked_candidates)
+            default_count = min(5, max_candidates)
+            show_count = st.number_input("Show Top N", 1, max_candidates, default_count)
+        
+        filtered = [c for c in st.session_state.ranked_candidates if c['overall_score'] >= min_score]
+        
+        if sort_by == "Skills Score":
             filtered.sort(key=lambda x: x['skills_score'], reverse=True)
-
+        elif sort_by == "Experience Score":
+            filtered.sort(key=lambda x: x['experience_score'], reverse=True)
+        
+        filtered = filtered[:show_count]
+        
         st.markdown(f"### Showing {len(filtered)} Candidates")
-
-        # Display candidates with agent info
+        
         for i, candidate in enumerate(filtered, 1):
-            self.display_agent_candidate_card(i, candidate)
-
+            self.display_candidate_card(i, candidate)
+        
         st.markdown("---")
-
-        # Download options
         col1, col2 = st.columns(2)
-
+        
         with col1:
             if st.button("📥 Download Report (JSON)", use_container_width=True):
                 self.download_json_report()
-
+        
         with col2:
             if st.button("📊 Download Report (CSV)", use_container_width=True):
                 self.download_csv_report()
-
-    def display_agent_candidate_card(self, rank, candidate):
-        """Display candidate card WITH agent decision info AND recruiter feedback"""
-
-        # Determine status based on agent decision
-        decision = candidate.get('agent_decision', 'unknown')
-        confidence = candidate.get('confidence_score', 0)
-
-        if decision == 'auto_shortlist':
-            emoji = "🟢"
-            status = "AUTO-SHORTLISTED"
-            color = "green"
-        elif decision == 'ask_questions':
-            emoji = "🟡"
-            status = "QUESTIONS NEEDED"
-            color = "orange"
-        elif decision == 'auto_reject':
-            emoji = "🔴"
-            status = "AUTO-REJECTED"
-            color = "red"
-        else:
-            emoji = "⚪"
-            status = "PENDING"
-            color = "gray"
-
-        score = candidate['overall_score']
-
-        # Check if recruiter has already made a decision
-        recruiter_decision = candidate.get('recruiter_decision')
-
-        with st.expander(
-            f"{emoji} **RANK #{rank}: {candidate['name']}** - "
-            f"Score: {score:.1f}% | Confidence: {confidence:.2f} | {status}",
-            expanded=(rank <= 3 and decision == 'auto_shortlist')
-        ):
-            # RECRUITER DECISION BANNER (if exists)
-            if recruiter_decision:
-                if recruiter_decision == 'hired':
-                    st.success("✅ **HIRED** - This candidate has been hired by the recruiter")
-                elif recruiter_decision == 'rejected':
-                    st.error("❌ **REJECTED** - This candidate has been rejected by the recruiter")
-                elif recruiter_decision == 'interview':
-                    st.info("📞 **INTERVIEW SCHEDULED** - Candidate selected for interview")
-                st.markdown("---")
-
-            # Header row
-            col1, col2, col3 = st.columns([2, 1, 1])
-
-            with col1:
-                st.markdown(f"**📧 Email:** {candidate['email']}")
-                st.markdown(f"**📱 Phone:** {candidate['phone']}")
-                st.markdown(f"**⏱️ Experience:** {candidate['total_experience']} years")
-
-            with col2:
-                st.markdown("**Match Score**")
-                st.markdown(f"<h2 style='color: {color};'>{score:.1f}%</h2>", unsafe_allow_html=True)
-
-            with col3:
-                st.markdown("**Confidence**")
-                st.markdown(f"<h2 style='color: {color};'>{confidence:.2f}</h2>", unsafe_allow_html=True)
-                confidence_level = candidate.get('confidence_level', 'unknown').upper()
-                st.markdown(f"**Level:** {confidence_level}")
-
-            st.markdown("---")
-
-            # Agent Decision Section
-            st.markdown("### 🤖 Agent Decision")
-
-            col1, col2 = st.columns([1, 1])
-
-            with col1:
-                st.markdown(f"**Decision:** {status}")
-
-                # Show reasoning
-                if candidate.get('agent_reasoning'):
-                    st.markdown("**Reasoning:**")
-                    for reason in candidate['agent_reasoning']:
-                        st.markdown(f"• {reason}")
-
-            with col2:
-                # Show critical gaps if any
-                if candidate.get('critical_gaps'):
-                    st.markdown("**⚠️ Critical Gaps:**")
-                    for gap in candidate['critical_gaps']:
-                        st.markdown(f"• {gap}")
-
-                # Show missing info
-                if candidate.get('missing_info'):
-                    st.markdown("**Missing Information:**")
-                    for info in candidate['missing_info'][:3]:
-                        st.caption(f"• {info}")
-
-            # Generate questions button for candidates needing questions
-            if decision == 'ask_questions' and self.agent_available:
-                st.markdown("---")
-
-                if st.button(f"❓ Generate Follow-up Questions", key=f"gen_q_{rank}"):
-                    with st.spinner("Generating intelligent questions..."):
-                        try:
-                            from job_resume_matcher import JobDescriptionParser
-
-                            job_data = JobDescriptionParser().parse_job_description(
-                                st.session_state.job_description
-                            )
-
-                            questions = self.question_generator.generate_questions(
-                                job_data,
-                                candidate['resume_data'],
-                                candidate.get('critical_gaps', []),
-                                candidate.get('missing_info', []),
-                                confidence
-                            )
-
-                            st.success("✅ Questions Generated!")
-
-                            st.markdown("**📝 Follow-up Questions:**")
-                            for i, q in enumerate(questions, 1):
-                                st.markdown(f"**Q{i}:** {q['question']}")
-                                st.caption(f"Gap: {q['gap_addressed']} | Priority: {q['priority']}")
-                                st.markdown("")
-
-                            # Store questions in session for later use
-                            if 'candidate_questions' not in st.session_state:
-                                st.session_state.candidate_questions = {}
-
-                            st.session_state.candidate_questions[candidate['email']] = questions
-
-                        except Exception as e:
-                            st.error(f"Failed to generate questions: {str(e)}")
-
-            st.markdown("---")
-
-            # Score breakdown
-            st.markdown("### 📊 Score Breakdown")
-
-            import plotly.express as px
-            import pandas as pd
-
-            scores_df = pd.DataFrame({
-                'Category': ['Skills', 'Experience', 'Education'],
-                'Score': [
-                    candidate['skills_score'],
-                    candidate['experience_score'],
-                    candidate['education_score']
-                ]
-            })
-
-            fig = px.bar(
-                scores_df,
-                x='Category',
-                y='Score',
-                color='Score',
-                color_continuous_scale='RdYlGn',
-                range_color=[0, 100]
-            )
-            fig.update_layout(height=250, showlegend=False)
-            st.plotly_chart(fig, use_container_width=True, key=f"score_chart_{rank}")
-
-            # Skills
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown("### ✅ Matched Skills")
-                if candidate['matched_skills']:
-                    for skill in candidate['matched_skills'][:10]:
-                        st.markdown(f"✓ {skill}")
-                    if len(candidate['matched_skills']) > 10:
-                        st.markdown(f"*+{len(candidate['matched_skills']) - 10} more*")
-                else:
-                    st.markdown("*No exact skill matches*")
-
-            with col2:
-                st.markdown("### ❌ Missing Skills")
-                if candidate['missing_skills']:
-                    for skill in candidate['missing_skills'][:10]:
-                        st.markdown(f"✗ {skill}")
-                    if len(candidate['missing_skills']) > 10:
-                        st.markdown(f"*+{len(candidate['missing_skills']) - 10} more*")
-                else:
-                    st.markdown("*All required skills present*")
-
-            # RECRUITER FEEDBACK SECTION (NEW)
-            st.markdown("---")
-            st.markdown("### 👨‍💼 Recruiter Decision")
-
-            if not recruiter_decision:
-                st.markdown("*Make your hiring decision for this candidate:*")
-
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    if st.button("✅ Hire", key=f"hire_{rank}", use_container_width=True, type="primary"):
-                        self._record_recruiter_decision(candidate, 'hired', rank)
-
-                with col2:
-                    if st.button("📞 Interview", key=f"interview_{rank}", use_container_width=True):
-                        self._record_recruiter_decision(candidate, 'interview', rank)
-
-                with col3:
-                    if st.button("❌ Reject", key=f"reject_{rank}", use_container_width=True):
-                        self._record_recruiter_decision(candidate, 'rejected', rank)
-            else:
-                st.info(f"Decision already recorded: **{recruiter_decision.upper()}**")
-
-                if st.button("🔄 Change Decision", key=f"change_{rank}"):
-                    # Allow changing decision
-                    candidate['recruiter_decision'] = None
-                    st.rerun()
-
-    def _record_recruiter_decision(self, candidate, decision, rank):
-        """Record recruiter's hiring decision"""
-
-        # Show feedback form
-        st.markdown("---")
-        feedback = st.text_area(
-            f"Optional feedback for {candidate['name']}:",
-            placeholder="e.g., Strong technical skills, good cultural fit, needs more experience in X...",
-            key=f"feedback_{decision}_{rank}"
-        )
-
-        if st.button(f"Confirm {decision.upper()}", key=f"confirm_{decision}_{rank}", type="primary"):
-            # Update candidate in session state
-            for i, c in enumerate(st.session_state.ranked_candidates):
-                if c['email'] == candidate['email']:
-                    st.session_state.ranked_candidates[i]['recruiter_decision'] = decision
-                    st.session_state.ranked_candidates[i]['recruiter_feedback'] = feedback
-                    break
-                
-            # Save to database
-            if self.db_available:
-                try:
-                    self.db.save_recruiter_feedback(
-                        candidate['email'],
-                        decision,
-                        feedback
-                    )
-                except Exception as e:
-                    st.warning(f"Could not save to database: {str(e)}")
-
-            st.success(f"✅ Decision recorded: {decision.upper()}")
-            st.balloons()
-            st.rerun()
-
-
-    def page_agent_qa(self):
-        """Agent Q&A - Interactive follow-up questions and re-evaluation"""
-        st.header("💬 Agent Q&A - Interactive Follow-up")
-        
-        if not st.session_state.ranked_candidates:
-            st.warning("⚠️ No candidates to interact with. Please rank candidates first!")
-            if st.button("Go to Rankings"):
-                self.navigate_to('Rankings')
-            return
-        
-        # Filter candidates that need questions
-        candidates_needing_questions = [
-            c for c in st.session_state.ranked_candidates 
-            if c.get('agent_decision') == 'ask_questions'
-        ]
-        
-        if not candidates_needing_questions:
-            st.info("✅ No candidates currently need follow-up questions!")
-            st.markdown("All candidates have been either auto-shortlisted or auto-rejected.")
-            if st.button("View Rankings"):
-                self.navigate_to('Rankings')
-            return
-        
-        st.markdown(f"### 🟡 {len(candidates_needing_questions)} Candidates Need Follow-up")
-        
-        # Select candidate
-        candidate_names = [c['name'] for c in candidates_needing_questions]
-        selected_name = st.selectbox("Select candidate:", candidate_names)
-        
-        if selected_name:
-            candidate = next(c for c in candidates_needing_questions if c['name'] == selected_name)
-            
-            # Show candidate summary
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Match Score", f"{candidate['overall_score']:.1f}%")
-            with col2:
-                st.metric("Current Confidence", f"{candidate.get('confidence_score', 0):.2f}")
-            with col3:
-                st.metric("Critical Gaps", len(candidate.get('critical_gaps', [])))
-            
-            st.markdown("---")
-            
-            # Show critical gaps
-            if candidate.get('critical_gaps'):
-                st.markdown("**⚠️ Critical Gaps Identified:**")
-                for gap in candidate['critical_gaps']:
-                    st.markdown(f"• {gap}")
-                st.markdown("")
-            
-            # Generate or show questions
-            if 'qa_questions' not in st.session_state:
-                st.session_state.qa_questions = {}
-            
-            candidate_key = candidate['email']
-            
-            # Generate questions button
-            if candidate_key not in st.session_state.qa_questions:
-                if st.button("🚀 Generate Follow-up Questions", type="primary", use_container_width=True):
-                    with st.spinner("Generating intelligent questions..."):
-                        try:
-                            from job_resume_matcher import JobDescriptionParser
-                            
-                            job_data = JobDescriptionParser().parse_job_description(
-                                st.session_state.job_description
-                            )
-                            
-                            questions = self.question_generator.generate_questions(
-                                job_data,
-                                candidate['resume_data'],
-                                candidate.get('critical_gaps', []),
-                                candidate.get('missing_info', []),
-                                candidate.get('confidence_score', 0.5)
-                            )
-                            
-                            st.session_state.qa_questions[candidate_key] = {
-                                'questions': questions,
-                                'answers': [''] * len(questions),
-                                'job_data': job_data
-                            }
-                            
-                            st.success("✅ Questions generated!")
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"Failed to generate questions: {str(e)}")
-                            import traceback
-                            st.code(traceback.format_exc())
-            
-            # Show questions and collect answers
-            if candidate_key in st.session_state.qa_questions:
-                qa_data = st.session_state.qa_questions[candidate_key]
-                questions = qa_data['questions']
-                
-                st.markdown("### 📝 Follow-up Questions")
-                st.markdown("*Please provide detailed answers to help us better assess your fit for this position.*")
-                st.markdown("")
-                
-                # Collect answers
-                answers = []
-                for i, q in enumerate(questions):
-                    st.markdown(f"**Question {i+1}:** {q['question']}")
-                    st.caption(f"Addressing: {q['gap_addressed']} | Priority: {q['priority']}")
-                    
-                    answer = st.text_area(
-                        f"Your answer:",
-                        value=qa_data['answers'][i],
-                        height=100,
-                        key=f"answer_{candidate_key}_{i}",
-                        placeholder="Provide specific examples and details..."
-                    )
-                    answers.append(answer)
-                    
-                    st.markdown("")
-                
-                # Update answers in session state
-                st.session_state.qa_questions[candidate_key]['answers'] = answers
-                
-                # Evaluate button
-                st.markdown("---")
-                
-                col1, col2 = st.columns([2, 1])
-                
-                with col1:
-                    all_answered = all(len(a.strip()) > 10 for a in answers)
-                    
-                    if not all_answered:
-                        st.warning("⚠️ Please answer all questions (minimum 10 characters each)")
-                    
-                    evaluate_button = st.button(
-                        "🔄 Evaluate Answers & Re-rank",
-                        type="primary",
-                        use_container_width=True,
-                        disabled=not all_answered
-                    )
-                
-                with col2:
-                    if st.button("🗑️ Clear & Regenerate", use_container_width=True):
-                        del st.session_state.qa_questions[candidate_key]
-                        st.rerun()
-                
-                # Evaluate answers
-                if evaluate_button and all_answered:
-                    with st.spinner("🤖 Agent is evaluating your answers..."):
-                        try:
-                            self._evaluate_and_rerank(candidate, questions, answers, qa_data['job_data'])
-                        except Exception as e:
-                            st.error(f"Evaluation failed: {str(e)}")
-                            import traceback
-                            st.code(traceback.format_exc())
-
-                            
-    def _evaluate_and_rerank(self, candidate, questions, answers, job_data):
-        """Evaluate answers and re-rank candidate"""
-        
-        # Check if any answers are empty or too short
-        unanswered = [i+1 for i, a in enumerate(answers) if len(a.strip()) < 10]
-        
-        if unanswered:
-            st.error(f"⚠️ Questions {', '.join(map(str, unanswered))} not answered properly!")
-            st.markdown("### ❌ Auto-Rejecting Candidate")
-            st.markdown("**Reason:** Failed to provide adequate responses to follow-up questions")
-            
-            # Update to auto-reject
-            for i, c in enumerate(st.session_state.ranked_candidates):
-                if c['email'] == candidate['email']:
-                    st.session_state.ranked_candidates[i]['agent_decision'] = 'auto_reject'
-                    st.session_state.ranked_candidates[i]['confidence_score'] = 0.2
-                    
-                    reasoning = candidate.get('agent_reasoning', []).copy()
-                    reasoning.append("Auto-rejected: Did not respond to follow-up questions")
-                    st.session_state.ranked_candidates[i]['agent_reasoning'] = reasoning
-                    break
-            
-            st.warning("This candidate has been moved to AUTO-REJECTED")
-            
-            if st.button("📊 View Updated Rankings"):
-                self.navigate_to('Rankings')
-            
-            return  # Exit early
-
-            # Continue with normal evaluation...
-            old_confidence = candidate.get('confidence_score', 0)
-
-            # Evaluate answers using AnswerEvaluator
-            try:
-                evaluation_result = self.answer_evaluator.evaluate_answers(
-                    questions, answers, job_data, candidate
-                )
-                total_confidence_boost = evaluation_result.get('confidence_boost', 0.0)
-            except Exception as e:
-                st.warning(f"Answer evaluation failed: {str(e)}")
-                total_confidence_boost = 0.0
-
-            new_confidence = min(1.0, old_confidence + total_confidence_boost)
-
-            st.markdown("---")
-            st.markdown("### 📊 Evaluation Results")
-
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                st.metric("Previous Confidence", f"{old_confidence:.2f}")
-
-            with col2:
-                st.metric("Total Boost", f"{total_confidence_boost:+.2f}")
-
-            with col3:
-                st.metric("New Confidence", f"{new_confidence:.2f}", delta=f"{total_confidence_boost:+.2f}")
-
-            # Determine new decision
-            from agent_brain import AgentBrain, AgentDecision, ConfidenceLevel
-
-            # Create temporary agent to determine new decision
-            from job_resume_matcher import JobDescriptionParser
-            job_parsed = JobDescriptionParser().parse_job_description(st.session_state.job_description)
-            temp_agent = AgentBrain(job_parsed)
-
-            confidence_level = temp_agent._determine_confidence_level(new_confidence)
-            new_decision = temp_agent._make_decision(
-                confidence_level,
-                candidate.get('critical_gaps', []),
-                candidate['overall_score']
-            )
-
-            old_decision = candidate.get('agent_decision', 'unknown')
-
-            st.markdown("---")
-            st.markdown("### 📋 Decision Update")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown("**Previous Decision:**")
-                if old_decision == 'auto_shortlist':
-                    st.success("🟢 Auto-Shortlisted")
-                elif old_decision == 'ask_questions':
-                    st.warning("🟡 Questions Needed")
-                else:
-                    st.error("🔴 Auto-Rejected")
-
-            with col2:
-                st.markdown("**New Decision:**")
-                if new_decision == AgentDecision.AUTO_SHORTLIST:
-                    st.success("🟢 Auto-Shortlisted")
-                elif new_decision == AgentDecision.ASK_QUESTIONS:
-                    st.warning("🟡 More Questions Needed")
-                else:
-                    st.error("🔴 Auto-Rejected")
-
-            # Update candidate in session state
-            for i, c in enumerate(st.session_state.ranked_candidates):
-                if c['email'] == candidate['email']:
-                    st.session_state.ranked_candidates[i]['confidence_score'] = new_confidence
-                    st.session_state.ranked_candidates[i]['agent_decision'] = new_decision.value
-
-                    new_reasoning = candidate.get('agent_reasoning', []).copy()
-                    new_reasoning.append(f"Re-evaluated after Q&A: confidence {old_confidence:.2f} → {new_confidence:.2f}")
-                    st.session_state.ranked_candidates[i]['agent_reasoning'] = new_reasoning
-                    break
-                
-            # Save to database if available
-            if self.db_available and hasattr(self, 'db'):
-                try:
-                    # This would need the ranking_id - you might need to store this in candidate data
-                    pass  # Implement based on your database structure
-                except:
-                    pass
-                
-            st.success("✅ Candidate re-evaluated successfully!")
-
-            if st.button("📊 View Updated Rankings", type="primary"):
-                self.navigate_to('Rankings')
-
-
-
     
-
     def display_ranking_metrics(self):
         """Display summary metrics for rankings"""
         col1, col2, col3, col4 = st.columns(4)
@@ -1596,169 +962,89 @@ Nice to Have:
                         st.success(rec)
 
     def page_analytics(self):
-     """Analytics and insights page"""
-     st.header("📈 Analytics & Insights")
-     
-     if not st.session_state.ranked_candidates:
-         st.warning("No data to analyze. Please rank candidates first!")
-         if st.button("Go to Job Description"):
-             self.navigate_to('Job Description')
-         return
-     
-     candidates = st.session_state.ranked_candidates
-     
-     # Agent Decision Distribution
-     st.markdown("### 🤖 Agent Decision Distribution")
-     
-     import plotly.graph_objects as go
-     
-     shortlisted = sum(1 for c in candidates if c.get('agent_decision') == 'auto_shortlist')
-     questions = sum(1 for c in candidates if c.get('agent_decision') == 'ask_questions')
-     rejected = sum(1 for c in candidates if c.get('agent_decision') == 'auto_reject')
-     
-     fig = go.Figure(data=[go.Pie(
-         labels=['Auto-Shortlisted', 'Questions Needed', 'Auto-Rejected'],
-         values=[shortlisted, questions, rejected],
-         marker_colors=['#10b981', '#f59e0b', '#ef4444'],
-         hole=0.3
-     )])
-     fig.update_layout(height=350)
-     st.plotly_chart(fig, use_container_width=True)
-     
-     st.markdown("---")
-     
-     # Score Distribution
-     st.markdown("### 📊 Score Distribution")
-     
-     scores = [c['overall_score'] for c in candidates]
-     fig = go.Figure(data=[go.Histogram(x=scores, nbinsx=10, marker_color='#667eea')])
-     fig.update_layout(
-         title="Candidate Score Distribution",
-         xaxis_title="Overall Score",
-         yaxis_title="Number of Candidates",
-         height=350
-     )
-     st.plotly_chart(fig, use_container_width=True)
-     
-     # Confidence vs Score
-     st.markdown("### 🎯 Confidence vs Match Score")
-     
-
-     
-     df = pd.DataFrame({
-         'Match Score': [c['overall_score'] for c in candidates],
-         'Confidence': [c.get('confidence_score', 0) for c in candidates],
-         'Name': [c['name'] for c in candidates],
-         'Decision': [c.get('agent_decision', 'unknown') for c in candidates]
-     })
-     
-     fig = px.scatter(
-         df,
-         x='Match Score',
-         y='Confidence',
-         hover_data=['Name'],
-         color='Decision',
-         color_discrete_map={
-             'auto_shortlist': '#10b981',
-             'ask_questions': '#f59e0b',
-             'auto_reject': '#ef4444'
-         },
-         size=[10]*len(df)
-     )
-     fig.update_layout(height=400)
-     st.plotly_chart(fig, use_container_width=True)
-     
-     col1, col2 = st.columns(2)
-     
-     with col1:
-         st.markdown("### 💪 Most Common Skills")
-         all_matched_skills = []
-         for c in candidates:
-             all_matched_skills.extend(c.get('matched_skills', []))
-         
-         if all_matched_skills:
-             skills_count = pd.Series(all_matched_skills).value_counts().head(10)
-             fig = px.bar(
-                 x=skills_count.values,
-                 y=skills_count.index,
-                 orientation='h',
-                 labels={'x': 'Count', 'y': 'Skill'}
-             )
-             fig.update_layout(height=400)
-             st.plotly_chart(fig, use_container_width=True)
-         else:
-             st.info("No matched skills data available")
-     
-     with col2:
-         st.markdown("### ⚠️ Most Missing Skills")
-         all_missing_skills = []
-         for c in candidates:
-             all_missing_skills.extend(c.get('missing_skills', []))
-         
-         if all_missing_skills:
-             missing_count = pd.Series(all_missing_skills).value_counts().head(10)
-             fig = px.bar(
-                 x=missing_count.values,
-                 y=missing_count.index,
-                 orientation='h',
-                 labels={'x': 'Count', 'y': 'Skill'},
-                 color_discrete_sequence=['#ef4444']
-             )
-             fig.update_layout(height=400)
-             st.plotly_chart(fig, use_container_width=True)
-         else:
-             st.info("No missing skills data available")
-     
-     # Critical Gaps Analysis
-     st.markdown("---")
-     st.markdown("### 🔍 Critical Gaps Analysis")
-     
-     all_critical_gaps = []
-     for c in candidates:
-         all_critical_gaps.extend(c.get('critical_gaps', []))
-     
-     if all_critical_gaps:
-         gaps_count = pd.Series(all_critical_gaps).value_counts().head(10)
-         
-         col1, col2 = st.columns([2, 1])
-         
-         with col1:
-             fig = px.bar(
-                 x=gaps_count.values,
-                 y=gaps_count.index,
-                 orientation='h',
-                 labels={'x': 'Number of Candidates', 'y': 'Critical Gap'},
-                 color_discrete_sequence=['#f59e0b']
-             )
-             fig.update_layout(height=350)
-             st.plotly_chart(fig, use_container_width=True)
-         
-         with col2:
-             st.markdown("**Top Critical Gaps:**")
-             for gap, count in gaps_count.head(5).items():
-                 st.metric(gap, f"{count} candidates")
-     else:
-         st.info("No critical gaps identified across candidates")
-         
-         st.markdown("### Experience vs Match Score")
-         
-         exp_data = pd.DataFrame({
-             'Experience': [c.get('total_experience', 0) for c in candidates],
-             'Score': [c['overall_score'] for c in candidates],
-             'Name': [c['name'] for c in candidates]
-         })
-         
-         fig = px.scatter(
-             exp_data,
-             x='Experience',
-             y='Score',
-             hover_data=['Name'],
-             size=[10]*len(exp_data),
-             color='Score',
-             color_continuous_scale='RdYlGn'
-         )
-         fig.update_layout(height=400)
-         st.plotly_chart(fig, use_container_width=True, key="exp_vs_score")
+        """Analytics and insights page"""
+        st.header("📈 Analytics & Insights")
+        
+        if not st.session_state.ranked_candidates:
+            st.warning("No data to analyze. Please rank candidates first!")
+            if st.button("Go to Job Description"):
+                self.navigate_to('Job Description')
+            return
+        
+        candidates = st.session_state.ranked_candidates
+        
+        st.markdown("### Score Distribution")
+        
+        scores = [c['overall_score'] for c in candidates]
+        fig = go.Figure(data=[go.Histogram(x=scores, nbinsx=10, marker_color='#667eea')])
+        fig.update_layout(
+            title="Candidate Score Distribution",
+            xaxis_title="Overall Score",
+            yaxis_title="Number of Candidates",
+            height=350
+        )
+        st.plotly_chart(fig, use_container_width=True, key="score_distribution")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Most Common Skills")
+            all_matched_skills = []
+            for c in candidates:
+                all_matched_skills.extend(c.get('matched_skills', []))
+            
+            if all_matched_skills:
+                skills_count = pd.Series(all_matched_skills).value_counts().head(10)
+                fig = px.bar(
+                    x=skills_count.values,
+                    y=skills_count.index,
+                    orientation='h',
+                    labels={'x': 'Count', 'y': 'Skill'}
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True, key="common_skills")
+            else:
+                st.info("No matched skills data available")
+        
+        with col2:
+            st.markdown("### Most Missing Skills")
+            all_missing_skills = []
+            for c in candidates:
+                all_missing_skills.extend(c.get('missing_skills', []))
+            
+            if all_missing_skills:
+                missing_count = pd.Series(all_missing_skills).value_counts().head(10)
+                fig = px.bar(
+                    x=missing_count.values,
+                    y=missing_count.index,
+                    orientation='h',
+                    labels={'x': 'Count', 'y': 'Skill'},
+                    color_discrete_sequence=['#ef4444']
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True, key="missing_skills")
+            else:
+                st.info("No missing skills data available")
+        
+        st.markdown("### Experience vs Match Score")
+        
+        exp_data = pd.DataFrame({
+            'Experience': [c.get('total_experience', 0) for c in candidates],
+            'Score': [c['overall_score'] for c in candidates],
+            'Name': [c['name'] for c in candidates]
+        })
+        
+        fig = px.scatter(
+            exp_data,
+            x='Experience',
+            y='Score',
+            hover_data=['Name'],
+            size=[10]*len(exp_data),
+            color='Score',
+            color_continuous_scale='RdYlGn'
+        )
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True, key="exp_vs_score")
     
     def download_json_report(self):
         """Generate JSON report for download"""
